@@ -1,0 +1,23 @@
+meta {
+  name: Update Video
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/courses/{{courseId}}/videos/{{videoId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Welcome Video Updated",
+    "isPublished": true,
+    "sortOrder": 0
+  }
+}

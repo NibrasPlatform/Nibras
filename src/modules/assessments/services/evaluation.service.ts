@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -12,6 +13,7 @@ import {
 } from '@modules/courses/enums/course.enums';
 import { SubmissionStatus } from '@modules/competitions/enums/competition.enums';
 import { CourseAccessService } from '@modules/courses/services/course-access.service';
+import { ActivityEventService } from '@modules/gamification/services/activity-event.service';
 import { DockerExecutorService } from '../execution/docker-executor.service';
 import {
   AssignmentSubmission,
@@ -23,6 +25,8 @@ import { BenchmarkService } from './benchmark.service';
 
 @Injectable()
 export class EvaluationService {
+  private readonly logger = new Logger(EvaluationService.name);
+
   constructor(
     @InjectModel(AssignmentSubmission.name)
     private readonly submissionModel: Model<AssignmentSubmission>,
@@ -31,6 +35,7 @@ export class EvaluationService {
     private readonly executor: DockerExecutorService,
     private readonly benchmark: BenchmarkService,
     private readonly access: CourseAccessService,
+    private readonly activityEvent: ActivityEventService,
   ) {}
 
   async evaluate(
@@ -142,6 +147,22 @@ export class EvaluationService {
       submission.status = AssignmentSubmissionStatus.Graded;
     }
     await submission.save();
+
+    if (submission.status === AssignmentSubmissionStatus.Graded) {
+      try {
+        await this.activityEvent.recordAssignmentApproved({
+          userId: user.id,
+          submissionId: submission._id.toString(),
+          assignmentId,
+          courseId,
+          grade: score,
+        });
+      } catch (err) {
+        this.logger.error(
+          `Gamification award failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
 
     const benchmarkInsight = await this.benchmark.compareToClassMedian(
       assignmentId,

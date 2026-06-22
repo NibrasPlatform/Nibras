@@ -61,7 +61,7 @@ export class ThreadController {
   ) {
     if (!isValidObjectId(courseId))
       throw new BadRequestException('Invalid course ID');
-    if (!this.courseService.isEnrolled(req.user, courseId)) {
+    if (!(await this.courseService.isEnrolled(req.user, courseId))) {
       throw new ForbiddenException(
         'You must be enrolled in this course to create a thread',
       );
@@ -92,7 +92,7 @@ export class ThreadController {
   ) {
     if (!isValidObjectId(courseId))
       throw new BadRequestException('Invalid course ID');
-    if (!this.courseService.isEnrolled(req.user, courseId)) {
+    if (!(await this.courseService.isEnrolled(req.user, courseId))) {
       throw new ForbiddenException(
         'You must be enrolled in this course to view threads',
       );
@@ -113,7 +113,7 @@ export class ThreadController {
     const thread = await this.threadService.findById(id);
     if (!thread) throw new NotFoundException('Thread not found');
     const courseId = this.getCourseId(thread);
-    if (!this.courseService.isEnrolled(req.user, courseId)) {
+    if (!(await this.courseService.isEnrolled(req.user, courseId))) {
       throw new ForbiddenException(
         'You must be enrolled in this course to view this thread',
       );
@@ -146,7 +146,7 @@ export class ThreadController {
     ) {
       throw new ForbiddenException('You are not allowed to update this thread');
     }
-    if (!this.courseService.isEnrolled(req.user, courseId)) {
+    if (!(await this.courseService.isEnrolled(req.user, courseId))) {
       throw new ForbiddenException(
         'You must be enrolled in this course to update a thread',
       );
@@ -172,7 +172,7 @@ export class ThreadController {
     const isAdmin = roleName === 'admin' || roleName === 'super admin';
     const isInstructor =
       roleName === 'instructor' &&
-      this.courseService.isEnrolled(req.user, this.getCourseId(thread));
+      (await this.courseService.isEnrolled(req.user, this.getCourseId(thread)));
     if (!isAuthor && !isAdmin && !isInstructor) {
       throw new ForbiddenException('You are not allowed to delete this thread');
     }
@@ -219,7 +219,7 @@ export class ThreadController {
     const isAdmin = roleName === 'admin' || roleName === 'super admin';
     const isInstructor =
       roleName === 'instructor' &&
-      this.courseService.isEnrolled(req.user, this.getCourseId(thread));
+      (await this.courseService.isEnrolled(req.user, this.getCourseId(thread)));
     if (!isAuthor && !isAdmin && !isInstructor) {
       throw new ForbiddenException('You are not allowed to close this thread');
     }

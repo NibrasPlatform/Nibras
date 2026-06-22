@@ -1,0 +1,23 @@
+meta {
+  name: Reorder Videos
+  type: http
+  seq: 11
+}
+
+patch {
+  url: {{baseUrl}}/courses/{{courseId}}/videos/reorder
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "videos": [
+      { "id": "{{videoId}}", "sortOrder": 1 }
+    ]
+  }
+}

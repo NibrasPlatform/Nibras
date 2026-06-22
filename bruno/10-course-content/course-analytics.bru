@@ -1,0 +1,15 @@
+meta {
+  name: Course Analytics
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/courses/{{courseId}}/analytics
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { createE2eApp } from './setup-e2e-app';
+import { createE2eApp, getHttpServer } from './setup-e2e-app';
 
 describe('Competitions (e2e)', () => {
   let app: INestApplication;
@@ -15,7 +15,7 @@ describe('Competitions (e2e)', () => {
   });
 
   it('GET /api/contests returns array', () => {
-    return request(app.getHttpServer())
+    return request(getHttpServer(app))
       .get('/api/contests')
       .expect(200)
       .expect((res) => {
@@ -24,17 +24,17 @@ describe('Competitions (e2e)', () => {
   });
 
   it('GET /api/integrations/platforms requires auth', () => {
-    return request(app.getHttpServer())
+    return request(getHttpServer(app))
       .get('/api/integrations/platforms')
       .expect(401);
   });
 
   it('GET /api/ranking requires auth', () => {
-    return request(app.getHttpServer()).get('/api/ranking').expect(401);
+    return request(getHttpServer(app)).get('/api/ranking').expect(401);
   });
 
   it('GET /api/contests/accounts requires auth', () => {
-    return request(app.getHttpServer())
+    return request(getHttpServer(app))
       .get('/api/contests/accounts')
       .expect(401);
   });

@@ -1,0 +1,14 @@
+meta {
+  name: Admin Recalculate Progression
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/tracks/admin/recalculate/{{userId}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

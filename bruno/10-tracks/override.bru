@@ -1,0 +1,21 @@
+meta {
+  name: Admin Override Track
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/tracks/admin/override/{{userId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "trackId": "{{trackId}}"
+  }
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Reorder Sections
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/courses/{{courseId}}/sections/reorder
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "sections": [
+      { "id": "{{sectionId}}", "sortOrder": 1 }
+    ]
+  }
+}

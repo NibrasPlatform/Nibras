@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import request from 'supertest';
 import { Model, Types } from 'mongoose';
-import { createE2eApp } from './setup-e2e-app';
+import { createE2eApp, getHttpServer } from './setup-e2e-app';
 import { User } from '../src/modules/auth/schemas/user.schema';
 import { Role } from '../src/modules/rbac/schemas/role.schema';
 import { SessionService } from '../src/modules/auth/services/session.service';
@@ -31,7 +31,7 @@ describe('Auth (e2e)', () => {
   });
 
   it('GET /api/auth/providers returns provider flags', () => {
-    return request(app.getHttpServer())
+    return request(getHttpServer(app))
       .get('/api/auth/providers')
       .expect(200)
       .expect((res) => {
@@ -43,7 +43,7 @@ describe('Auth (e2e)', () => {
   });
 
   it('GET /api/users/me requires authentication', () => {
-    return request(app.getHttpServer()).get('/api/users/me').expect(401);
+    return request(getHttpServer(app)).get('/api/users/me').expect(401);
   });
 
   it('GET /api/users/me returns profile for valid session', async () => {
@@ -65,7 +65,7 @@ describe('Auth (e2e)', () => {
       user._id.toString(),
     );
 
-    await request(app.getHttpServer())
+    await request(getHttpServer(app))
       .get('/api/users/me')
       .set('Authorization', `Bearer ${sessionToken}`)
       .expect(200)
@@ -93,7 +93,7 @@ describe('Auth (e2e)', () => {
       user._id.toString(),
     );
 
-    await request(app.getHttpServer())
+    await request(getHttpServer(app))
       .get(`/api/users/${new Types.ObjectId().toString()}`)
       .set('Authorization', `Bearer ${sessionToken}`)
       .expect(403);
@@ -115,12 +115,12 @@ describe('Auth (e2e)', () => {
       user._id.toString(),
     );
 
-    await request(app.getHttpServer())
+    await request(getHttpServer(app))
       .post('/api/auth/logout')
       .set('Authorization', `Bearer ${sessionToken}`)
       .expect(204);
 
-    await request(app.getHttpServer())
+    await request(getHttpServer(app))
       .get('/api/users/me')
       .set('Authorization', `Bearer ${sessionToken}`)
       .expect(401);

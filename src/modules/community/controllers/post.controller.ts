@@ -57,7 +57,7 @@ export class PostController {
     const thread = await this.threadService.findById(threadId);
     if (!thread) throw new NotFoundException('Thread not found');
     const courseId = this.getThreadCourseId(thread);
-    if (!this.courseService.isEnrolled(req.user, courseId)) {
+    if (!(await this.courseService.isEnrolled(req.user, courseId))) {
       throw new ForbiddenException(
         'You must be enrolled in this course to post a reply',
       );

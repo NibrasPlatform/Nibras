@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import request from 'supertest';
 import { Model } from 'mongoose';
-import { createE2eApp } from './setup-e2e-app';
+import { createE2eApp, getHttpServer } from './setup-e2e-app';
 import { User } from '../src/modules/auth/schemas/user.schema';
 import { Role } from '../src/modules/rbac/schemas/role.schema';
 import { SessionService } from '../src/modules/auth/services/session.service';
@@ -29,7 +29,9 @@ describe('Assessments flow (e2e)', () => {
     roleModel = app.get(getModelToken(Role.name));
     sessionService = app.get(SessionService);
 
-    const instructorRole = await roleModel.findOne({ name: 'instructor' }).exec();
+    const instructorRole = await roleModel
+      .findOne({ name: 'instructor' })
+      .exec();
     const studentRole = await roleModel.findOne({ name: 'student' }).exec();
     expect(instructorRole).toBeTruthy();
     expect(studentRole).toBeTruthy();
@@ -67,7 +69,7 @@ describe('Assessments flow (e2e)', () => {
   });
 
   it('creates course, assignment, test case, submits and evaluates', async () => {
-    const courseRes = await request(app.getHttpServer())
+    const courseRes = await request(getHttpServer(app))
       .post('/api/courses')
       .set('Authorization', `Bearer ${instructorToken}`)
       .send({
@@ -81,13 +83,13 @@ describe('Assessments flow (e2e)', () => {
 
     const courseId = (courseRes.body as IdResponse).id;
 
-    await request(app.getHttpServer())
+    await request(getHttpServer(app))
       .post(`/api/courses/${courseId}/enroll`)
       .set('Authorization', `Bearer ${studentToken}`)
       .send({})
       .expect(201);
 
-    const assignmentRes = await request(app.getHttpServer())
+    const assignmentRes = await request(getHttpServer(app))
       .post(`/api/courses/${courseId}/assignments`)
       .set('Authorization', `Bearer ${instructorToken}`)
       .send({
@@ -100,7 +102,7 @@ describe('Assessments flow (e2e)', () => {
 
     const assignmentId = (assignmentRes.body as IdResponse).id;
 
-    await request(app.getHttpServer())
+    await request(getHttpServer(app))
       .post(`/api/assignments/${assignmentId}/test-cases`)
       .set('Authorization', `Bearer ${instructorToken}`)
       .send({
@@ -110,7 +112,7 @@ describe('Assessments flow (e2e)', () => {
       })
       .expect(201);
 
-    await request(app.getHttpServer())
+    await request(getHttpServer(app))
       .post(`/api/assignments/${assignmentId}/submit`)
       .set('Authorization', `Bearer ${studentToken}`)
       .send({
@@ -119,7 +121,7 @@ describe('Assessments flow (e2e)', () => {
       })
       .expect(201);
 
-    const evalRes = await request(app.getHttpServer())
+    const evalRes = await request(getHttpServer(app))
       .post(`/api/assignments/${assignmentId}/evaluate`)
       .set('Authorization', `Bearer ${studentToken}`)
       .expect(201);

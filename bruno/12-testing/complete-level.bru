@@ -1,0 +1,14 @@
+meta {
+  name: Complete Level
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/testing/levels/{{level}}/complete/{{userId}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

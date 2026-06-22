@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import request from 'supertest';
 import { Model } from 'mongoose';
-import { createE2eApp } from './setup-e2e-app';
+import { createE2eApp, getHttpServer } from './setup-e2e-app';
 import { User } from '../src/modules/auth/schemas/user.schema';
 import { Role } from '../src/modules/rbac/schemas/role.schema';
 import { SessionService } from '../src/modules/auth/services/session.service';
@@ -54,7 +54,7 @@ describe('Internal contest flow (e2e)', () => {
   });
 
   it('creates problem, contest, registers, and submits solution', async () => {
-    const problemRes = await request(app.getHttpServer())
+    const problemRes = await request(getHttpServer(app))
       .post('/api/problems')
       .set('Authorization', `Bearer ${instructorToken}`)
       .send({
@@ -74,7 +74,7 @@ describe('Internal contest flow (e2e)', () => {
     const start = new Date(Date.now() - 60_000).toISOString();
     const end = new Date(Date.now() + 3600_000).toISOString();
 
-    const contestRes = await request(app.getHttpServer())
+    const contestRes = await request(getHttpServer(app))
       .post('/api/contests')
       .set('Authorization', `Bearer ${instructorToken}`)
       .send({
@@ -87,12 +87,12 @@ describe('Internal contest flow (e2e)', () => {
 
     const contestId = (contestRes.body as IdResponse).id;
 
-    await request(app.getHttpServer())
+    await request(getHttpServer(app))
       .post(`/api/contests/${contestId}/register`)
       .set('Authorization', `Bearer ${instructorToken}`)
       .expect(201);
 
-    const submitRes = await request(app.getHttpServer())
+    const submitRes = await request(getHttpServer(app))
       .post(`/api/contests/${contestId}/submissions`)
       .set('Authorization', `Bearer ${instructorToken}`)
       .send({
@@ -104,7 +104,7 @@ describe('Internal contest flow (e2e)', () => {
 
     expect((submitRes.body as SubmissionResponse).status).toBeDefined();
 
-    const detail = await request(app.getHttpServer())
+    const detail = await request(getHttpServer(app))
       .get(`/api/contests/${contestId}`)
       .expect(200);
 

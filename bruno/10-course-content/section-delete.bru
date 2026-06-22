@@ -1,0 +1,15 @@
+meta {
+  name: Delete Section
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/courses/{{courseId}}/sections/{{sectionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

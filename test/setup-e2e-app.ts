@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import type { Server } from 'node:net';
 import type { AppModule as AppModuleType } from '../src/app.module';
 
 export async function createE2eApp(): Promise<INestApplication> {
@@ -20,4 +21,8 @@ export async function createE2eApp(): Promise<INestApplication> {
   await app.init();
 
   return app;
+}
+
+export function getHttpServer(app: INestApplication): Server {
+  return app.getHttpServer() as Server;
 }

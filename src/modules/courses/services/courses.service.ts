@@ -10,7 +10,11 @@ import { Model, Types } from 'mongoose';
 import type { AuthenticatedUser } from '@modules/auth/types/authenticated-user.type';
 import { User } from '@modules/auth/schemas/user.schema';
 import { CourseRole, EnrollmentRequestStatus } from '../enums/course.enums';
-import { CreateCourseDto, AddCourseMemberDto } from '../dto/courses.dto';
+import {
+  CreateCourseDto,
+  UpdateCourseDto,
+  AddCourseMemberDto,
+} from '../dto/courses.dto';
 import { Course, CourseDocument } from '../schemas/course.schema';
 import { CourseMembership } from '../schemas/course-membership.schema';
 import { CourseEnrollmentRequest } from '../schemas/course-enrollment-request.schema';
@@ -41,6 +45,12 @@ export class CoursesService {
       description: course.description || undefined,
       isPublic: course.isPublic,
       isActive: course.isActive,
+      level: course.level,
+      sortOrder: course.sortOrder,
+      trackId: course.trackId?.toString() ?? null,
+      sequentialVideos: course.sequentialVideos,
+      thumbnailUrl: course.thumbnailUrl,
+      syllabus: course.syllabus,
       role,
     };
   }
@@ -340,13 +350,14 @@ export class CoursesService {
       .lean()
       .exec();
 
-    return requests.map((r) => {
+    return requests.reduce<Array<Record<string, unknown>>>((acc, r) => {
+      if (!r.userId) return acc;
       const user = r.userId as unknown as {
         _id: Types.ObjectId;
         username?: string;
         email?: string;
       };
-      return {
+      acc.push({
         id: r._id.toString(),
         userId: user._id.toString(),
         username: user.username ?? null,
@@ -356,8 +367,47 @@ export class CoursesService {
         requestedAt: (r as unknown as { createdAt: string }).createdAt,
         reviewedBy: r.reviewedBy?.toString() ?? null,
         reviewedAt: r.reviewedAt?.toISOString() ?? null,
-      };
-    });
+      });
+      return acc;
+    }, []);
+  }
+
+  async updateCourse(
+    user: AuthenticatedUser,
+    courseId: string,
+    dto: UpdateCourseDto,
+  ) {
+    const course = await this.access.findActiveCourse(courseId);
+    if (!course) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'Course not found',
+      });
+    }
+
+    if (!(await this.access.canManageCourseForRequest(user, courseId))) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN',
+        message: 'Course management access required',
+      });
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (dto.title !== undefined) updates.title = dto.title;
+    if (dto.description !== undefined) updates.description = dto.description;
+    if (dto.isPublic !== undefined) updates.isPublic = dto.isPublic;
+    if (dto.isActive !== undefined) updates.isActive = dto.isActive;
+    if (dto.sequentialVideos !== undefined)
+      updates.sequentialVideos = dto.sequentialVideos;
+    if (dto.thumbnailUrl !== undefined) updates.thumbnailUrl = dto.thumbnailUrl;
+    if (dto.syllabus !== undefined) updates.syllabus = dto.syllabus;
+
+    await this.courseModel
+      .findByIdAndUpdate(courseId, { $set: updates })
+      .exec();
+
+    const updated = await this.courseModel.findById(courseId).exec();
+    return this.presentCourse(updated!, undefined);
   }
 
   async approveEnrollment(

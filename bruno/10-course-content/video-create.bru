@@ -1,0 +1,34 @@
+meta {
+  name: Create Video
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/courses/{{courseId}}/sections/{{sectionId}}/videos
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Welcome Video",
+    "description": "First video in the course",
+    "provider": "youtube",
+    "externalId": "dQw4w9WgXcQ",
+    "embedUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "durationSeconds": 120,
+    "sortOrder": 0
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body.id) {
+    bru.setVar("videoId", res.body.id);
+    bru.setEnvVar("videoId", res.body.id);
+  }
+}

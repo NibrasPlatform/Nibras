@@ -1,0 +1,30 @@
+meta {
+  name: Create Section
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/courses/{{courseId}}/sections
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Introduction",
+    "description": "Getting started with the course",
+    "sortOrder": 0
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body.id) {
+    bru.setVar("sectionId", res.body.id);
+    bru.setEnvVar("sectionId", res.body.id);
+  }
+}

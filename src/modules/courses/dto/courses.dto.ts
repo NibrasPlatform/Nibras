@@ -98,3 +98,63 @@ export class EnrollmentRequestDto {
   message?: string;
   createdAt!: string;
 }
+
+export class UpdateCourseDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  sequentialVideos?: boolean;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  thumbnailUrl?: string | null;
+
+  @ApiPropertyOptional({
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        week: { type: 'number' },
+        title: { type: 'string' },
+        description: { type: 'string' },
+      },
+    },
+  })
+  @IsOptional()
+  syllabus?: Array<{ week: number; title: string; description: string }>;
+}
+
+export class SelectTrackDto {
+  @ApiProperty()
+  @IsString()
+  trackId!: string;
+}
+
+export class AdminOverrideTrackDto {
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  trackId?: string | null;
+}

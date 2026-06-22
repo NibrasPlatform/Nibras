@@ -1,0 +1,21 @@
+meta {
+  name: Set User Track
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/testing/users/{{userId}}/set-track
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "trackId": "{{trackId}}"
+  }
+}

@@ -1,0 +1,30 @@
+meta {
+  name: Create Track
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/tracks
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "name": "Artificial Intelligence",
+    "slug": "artificial-intelligence",
+    "description": "AI track covering machine learning, deep learning, and NLP"
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body.id) {
+    bru.setVar("trackId", res.body.id);
+    bru.setEnvVar("trackId", res.body.id);
+  }
+}

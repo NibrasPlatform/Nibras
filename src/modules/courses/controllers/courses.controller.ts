@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -22,6 +23,7 @@ import {
   AddCourseMemberDto,
   CreateCourseDto,
   EnrollCourseDto,
+  UpdateCourseDto,
 } from '../dto/courses.dto';
 import { CoursesService } from '../services/courses.service';
 import { EnrollmentRequestStatus } from '../enums/course.enums';
@@ -80,6 +82,18 @@ export class CoursesController {
     @Param('courseId') courseId: string,
   ) {
     return this.coursesService.getCourseDetail(user, courseId);
+  }
+
+  @Patch(':courseId')
+  @UseGuards(RolesGuard)
+  @Roles('instructor', 'admin', 'super-admin')
+  @ApiOperation({ summary: 'Update course settings (instructor)' })
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('courseId') courseId: string,
+    @Body() dto: UpdateCourseDto,
+  ) {
+    return this.coursesService.updateCourse(user, courseId, dto);
   }
 
   @Post(':courseId/enroll')

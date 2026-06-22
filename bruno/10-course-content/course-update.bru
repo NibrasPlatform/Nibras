@@ -1,0 +1,25 @@
+meta {
+  name: Update Course
+  type: http
+  seq: 14
+}
+
+patch {
+  url: {{baseUrl}}/courses/{{courseId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "sequentialVideos": true,
+    "thumbnailUrl": "https://example.com/thumb.jpg",
+    "syllabus": [
+      { "week": 1, "title": "Introduction", "description": "Week 1 overview" }
+    ]
+  }
+}

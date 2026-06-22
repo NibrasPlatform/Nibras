@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { Schema as MongooseSchema } from 'mongoose';
+import { CourseLevel } from '@modules/courses/enums/course.enums';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -95,6 +96,12 @@ export class User {
 
   @Prop()
   lastActive?: Date;
+
+  @Prop({ type: String, enum: CourseLevel, default: CourseLevel.Beginner })
+  currentLevel!: CourseLevel;
+
+  @Prop({ type: Types.ObjectId, default: null })
+  selectedTrackId!: Types.ObjectId | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

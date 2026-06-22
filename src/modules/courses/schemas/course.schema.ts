@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
+import { CourseLevel } from '../enums/course.enums';
 
 export type CourseDocument = HydratedDocument<Course>;
 
@@ -28,6 +29,33 @@ export class Course {
 
   @Prop({ type: Date, default: null })
   deletedAt!: Date | null;
+
+  @Prop({ type: String, enum: CourseLevel, default: CourseLevel.Beginner })
+  level!: CourseLevel;
+
+  @Prop({ default: 0 })
+  sortOrder!: number;
+
+  @Prop({ type: Types.ObjectId, default: null })
+  trackId!: Types.ObjectId | null;
+
+  @Prop({ default: false })
+  sequentialVideos!: boolean;
+
+  @Prop({ type: String, default: null })
+  thumbnailUrl!: string | null;
+
+  @Prop({
+    type: [
+      {
+        week: { type: Number },
+        title: { type: String },
+        description: { type: String },
+      },
+    ],
+    default: [],
+  })
+  syllabus!: Array<{ week: number; title: string; description: string }>;
 }
 
 export const CourseSchema = SchemaFactory.createForClass(Course);

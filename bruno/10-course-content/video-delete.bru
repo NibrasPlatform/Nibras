@@ -1,0 +1,15 @@
+meta {
+  name: Delete Video
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/courses/{{courseId}}/videos/{{videoId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

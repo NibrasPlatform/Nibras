@@ -1,0 +1,24 @@
+meta {
+  name: Update Section
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/courses/{{courseId}}/sections/{{sectionId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Introduction Updated",
+    "description": "Updated description",
+    "sortOrder": 0,
+    "isPublished": true
+  }
+}

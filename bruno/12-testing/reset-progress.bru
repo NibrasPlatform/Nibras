@@ -1,0 +1,14 @@
+meta {
+  name: Reset User Progress
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/testing/users/{{userId}}/reset
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

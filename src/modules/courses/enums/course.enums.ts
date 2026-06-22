@@ -31,3 +31,16 @@ export enum TestCaseResultStatus {
   TimeLimitExceeded = 'tle',
   MemoryLimitExceeded = 'mle',
 }
+
+export enum CourseLevel {
+  Beginner = 'beginner',
+  Intermediate = 'intermediate',
+  Advanced = 'advanced',
+  Expert = 'expert',
+}
+
+export enum CourseEventType {
+  TrackSelected = 'TRACK_SELECTED',
+  LevelCompleted = 'LEVEL_COMPLETED',
+  LevelUnlocked = 'LEVEL_UNLOCKED',
+}

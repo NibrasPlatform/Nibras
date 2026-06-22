@@ -1,0 +1,21 @@
+meta {
+  name: Set User Level
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/testing/users/{{userId}}/set-level
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "level": "advanced"
+  }
+}

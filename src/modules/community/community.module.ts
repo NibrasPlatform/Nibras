@@ -9,6 +9,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ModuleRef } from '@nestjs/core';
 import { HttpModule } from '@nestjs/axios';
 import { AuthModule } from '@modules/auth/auth.module';
+import { CoursesModule } from '@modules/courses/courses.module';
 import { GamificationModule } from '@modules/gamification/gamification.module';
 import { ActivityEventService } from '@modules/gamification/services/activity-event.service';
 import { Thread, ThreadSchema } from './schemas/thread.schema';
@@ -56,6 +57,7 @@ import type {
   imports: [
     forwardRef(() => GamificationModule),
     AuthModule,
+    CoursesModule,
     MongooseModule.forFeature([
       { name: Thread.name, schema: ThreadSchema },
       { name: Post.name, schema: PostSchema },

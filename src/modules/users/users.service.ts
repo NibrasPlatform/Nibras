@@ -12,7 +12,10 @@ export class UsersService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
-  toProfileResponse(user: AuthenticatedUser): UserProfileResponseDto {
+  async toProfileResponse(
+    user: AuthenticatedUser,
+  ): Promise<UserProfileResponseDto> {
+    const doc = await this.userModel.findById(user.id).exec();
     return {
       id: user.id,
       username: user.username,
@@ -25,6 +28,8 @@ export class UsersService {
       emailVerified: user.emailVerified,
       institution: user.institution,
       preferences: user.preferences,
+      currentLevel: doc?.currentLevel,
+      selectedTrackId: doc?.selectedTrackId?.toString() ?? null,
     };
   }
 
@@ -63,6 +68,8 @@ export class UsersService {
       emailVerified: user.emailVerified,
       institution: user.institution,
       preferences: user.preferences ?? {},
+      currentLevel: user.currentLevel,
+      selectedTrackId: user.selectedTrackId?.toString() ?? null,
     };
   }
 
@@ -89,6 +96,8 @@ export class UsersService {
       emailVerified: user.emailVerified,
       institution: user.institution,
       preferences: user.preferences ?? {},
+      currentLevel: user.currentLevel,
+      selectedTrackId: user.selectedTrackId?.toString() ?? null,
     };
   }
 }

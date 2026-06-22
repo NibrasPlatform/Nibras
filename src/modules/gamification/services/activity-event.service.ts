@@ -107,4 +107,111 @@ export class ActivityEventService {
       occurredAt: data.occurredAt,
     });
   }
+
+  async recordLessonCompleted(data: {
+    userId: string;
+    videoId: string;
+    courseId: string;
+    sectionId: string;
+    occurredAt?: Date;
+  }): Promise<void> {
+    await this.pointsEngine.award({
+      userId: data.userId,
+      activityType: ActivityType.LessonCompleted,
+      source: ActivitySource.Courses,
+      resourceId: data.videoId,
+      resourceType: 'Video',
+      dedupeKey: `lesson_completed:${data.videoId}:${data.userId}`,
+      occurredAt: data.occurredAt,
+      courseId: data.courseId,
+    });
+  }
+
+  async recordSectionCompleted(data: {
+    userId: string;
+    sectionId: string;
+    courseId: string;
+    occurredAt?: Date;
+  }): Promise<void> {
+    await this.pointsEngine.award({
+      userId: data.userId,
+      activityType: ActivityType.SectionCompleted,
+      source: ActivitySource.Courses,
+      resourceId: data.sectionId,
+      resourceType: 'Section',
+      dedupeKey: `section_completed:${data.sectionId}:${data.userId}`,
+      occurredAt: data.occurredAt,
+      courseId: data.courseId,
+    });
+  }
+
+  async recordCourseCompleted(data: {
+    userId: string;
+    courseId: string;
+    level: string;
+    occurredAt?: Date;
+  }): Promise<void> {
+    await this.pointsEngine.award({
+      userId: data.userId,
+      activityType: ActivityType.CourseCompleted,
+      source: ActivitySource.Courses,
+      resourceId: data.courseId,
+      resourceType: 'Course',
+      dedupeKey: `course_completed:${data.courseId}:${data.userId}`,
+      occurredAt: data.occurredAt,
+      courseId: data.courseId,
+      metadata: { level: data.level },
+    });
+  }
+
+  async recordAssignmentSubmitted(data: {
+    userId: string;
+    submissionId: string;
+    assignmentId: string;
+    courseId: string;
+    occurredAt?: Date;
+  }): Promise<void> {
+    await this.pointsEngine.award({
+      userId: data.userId,
+      activityType: ActivityType.AssignmentSubmitted,
+      source: ActivitySource.Courses,
+      resourceId: data.submissionId,
+      resourceType: 'Submission',
+      dedupeKey: `assignment_submitted:${data.submissionId}`,
+      occurredAt: data.occurredAt,
+      courseId: data.courseId,
+    });
+  }
+
+  async recordAssignmentApproved(data: {
+    userId: string;
+    submissionId: string;
+    assignmentId: string;
+    courseId: string;
+    grade: number;
+    occurredAt?: Date;
+  }): Promise<void> {
+    await this.pointsEngine.award({
+      userId: data.userId,
+      activityType: ActivityType.AssignmentApproved,
+      source: ActivitySource.Courses,
+      resourceId: data.submissionId,
+      resourceType: 'Submission',
+      dedupeKey: `assignment_approved:${data.submissionId}`,
+      occurredAt: data.occurredAt,
+      courseId: data.courseId,
+    });
+
+    await this.pointsEngine.award({
+      userId: data.userId,
+      activityType: ActivityType.HighGrade,
+      source: ActivitySource.Courses,
+      resourceId: data.submissionId,
+      resourceType: 'Submission',
+      dedupeKey: `high_grade:${data.submissionId}:${data.userId}`,
+      occurredAt: data.occurredAt,
+      courseId: data.courseId,
+      metadata: { grade: data.grade },
+    });
+  }
 }

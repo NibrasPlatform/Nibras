@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { createE2eApp } from './setup-e2e-app';
+import { createE2eApp, getHttpServer } from './setup-e2e-app';
 
 interface PingResponse {
   status: string;
@@ -22,7 +22,7 @@ describe('Health (e2e)', () => {
   });
 
   it('GET /api/ping returns mongo and redis status', () => {
-    return request(app.getHttpServer())
+    return request(getHttpServer(app))
       .get('/api/ping')
       .expect(200)
       .expect((res) => {

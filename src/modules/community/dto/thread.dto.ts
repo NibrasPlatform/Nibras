@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsArray,
-  IsMongoId,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 
 export class CreateThreadDto {
   @IsString()
@@ -14,9 +8,6 @@ export class CreateThreadDto {
   @IsString()
   @IsNotEmpty()
   body!: string;
-
-  @IsMongoId()
-  course!: string;
 
   @IsOptional()
   @IsArray()

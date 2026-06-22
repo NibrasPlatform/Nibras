@@ -1,0 +1,23 @@
+meta {
+  name: Update Track
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/tracks/{{trackId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "name": "Updated Track Name",
+    "description": "Updated description",
+    "isActive": true
+  }
+}

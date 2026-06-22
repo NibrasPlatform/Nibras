@@ -58,4 +58,10 @@ export class UserProfileResponseDto {
 
   @ApiProperty()
   preferences!: Record<string, unknown>;
+
+  @ApiPropertyOptional()
+  currentLevel?: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  selectedTrackId?: string | null;
 }

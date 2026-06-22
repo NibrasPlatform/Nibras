@@ -1,0 +1,24 @@
+meta {
+  name: Update Course
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/courses/{{courseId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Updated Course Title",
+    "description": "Updated description",
+    "isPublic": true,
+    "level": "intermediate"
+  }
+}

@@ -1,0 +1,15 @@
+meta {
+  name: List Sections
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/courses/{{courseId}}/sections
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

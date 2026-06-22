@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -13,6 +14,7 @@ import {
 } from '@modules/courses/enums/course.enums';
 import { CourseAccessService } from '@modules/courses/services/course-access.service';
 import { CoursesService } from '@modules/courses/services/courses.service';
+import { ActivityEventService } from '@modules/gamification/services/activity-event.service';
 import {
   CreateAssignmentDto,
   SubmitAssignmentDto,
@@ -26,6 +28,8 @@ import {
 
 @Injectable()
 export class AssignmentsService {
+  private readonly logger = new Logger(AssignmentsService.name);
+
   constructor(
     @InjectModel(Assignment.name)
     private readonly assignmentModel: Model<Assignment>,
@@ -33,6 +37,7 @@ export class AssignmentsService {
     private readonly submissionModel: Model<AssignmentSubmission>,
     private readonly coursesService: CoursesService,
     private readonly access: CourseAccessService,
+    private readonly activityEvent: ActivityEventService,
   ) {}
 
   async getAssignmentOrThrow(
@@ -337,6 +342,19 @@ export class AssignmentsService {
         { upsert: true, new: true },
       )
       .exec();
+
+    try {
+      await this.activityEvent.recordAssignmentSubmitted({
+        userId: user.id,
+        submissionId: record._id.toString(),
+        assignmentId,
+        courseId,
+      });
+    } catch (err) {
+      this.logger.error(
+        `Gamification award failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
 
     return {
       id: record._id.toString(),

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '@modules/auth/auth.module';
 import { CoursesModule } from '@modules/courses/courses.module';
+import { GamificationModule } from '@modules/gamification/gamification.module';
 import {
   Assignment,
   AssignmentSchema,
@@ -34,6 +35,7 @@ import { RubricsService } from './services/rubrics.service';
   imports: [
     AuthModule,
     CoursesModule,
+    GamificationModule,
     MongooseModule.forFeature([
       { name: Assignment.name, schema: AssignmentSchema },
       { name: TestCase.name, schema: TestCaseSchema },

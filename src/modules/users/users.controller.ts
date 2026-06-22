@@ -34,7 +34,9 @@ export class UsersController {
   @Get('me')
   @UseGuards(SessionAuthGuard)
   @ApiOperation({ summary: 'Get authenticated user profile' })
-  getMe(@CurrentUser() user: AuthenticatedUser): UserProfileResponseDto {
+  async getMe(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<UserProfileResponseDto> {
     return this.usersService.toProfileResponse(user);
   }
 

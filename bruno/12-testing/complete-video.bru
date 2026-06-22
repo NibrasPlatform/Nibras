@@ -1,0 +1,14 @@
+meta {
+  name: Complete Video
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/testing/videos/{{videoId}}/complete/{{userId}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
