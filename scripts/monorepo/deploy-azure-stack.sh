@@ -7,6 +7,8 @@ RG="${RG:-nibras-rg}"
 ENV_NAME="${ENV_NAME:-nibras-env}"
 ACR_NAME="${ACR_NAME:-nibrasacr4b4c9b7e}"
 TAG="${TAG:-$(git -C "$ROOT" rev-parse --short HEAD)}"
+API_TAG="${API_TAG:-$TAG}"
+WEB_TAG="${WEB_TAG:-$TAG}"
 SECRETS_FILE="${SECRETS_FILE:-/tmp/nibras-azure-secrets.env}"
 
 LOGIN_SERVER="${ACR_NAME}.azurecr.io"
@@ -30,7 +32,7 @@ fi
 NESTJS_ORIGIN="${NIBRAS_NESTJS_ORIGIN:-https://backend-production-129d.up.railway.app}"
 
 create_or_update_api() {
-  local image="${LOGIN_SERVER}/nibras-api:${TAG}"
+  local image="${LOGIN_SERVER}/nibras-api:${API_TAG}"
   local web_cors_origin="${NIBRAS_WEB_CORS_ORIGINS:-}"
   if [[ -z "$web_cors_origin" ]] && az containerapp show -n nibras-web -g "$RG" >/dev/null 2>&1; then
     local web_fqdn
@@ -100,7 +102,7 @@ create_or_update_api() {
 create_or_update_web() {
   local api_fqdn
   api_fqdn="$(az containerapp show -n nibras-api -g "$RG" --query 'properties.configuration.ingress.fqdn' -o tsv)"
-  local image="${LOGIN_SERVER}/nibras-web:${TAG}"
+  local image="${LOGIN_SERVER}/nibras-web:${WEB_TAG}"
   local google_client_id="${NIBRAS_GOOGLE_CLIENT_ID:-561316297025-c9ohua7q6sa91nn2eetsprac65a3oog6.apps.googleusercontent.com}"
   if az containerapp show -n nibras-web -g "$RG" >/dev/null 2>&1; then
     az containerapp update -n nibras-web -g "$RG" --image "$image" -o none
@@ -132,12 +134,12 @@ create_or_update_web() {
   fi
 }
 
-echo "Deploying nibras-api:$TAG ..."
+echo "Deploying nibras-api:${API_TAG} ..."
 create_or_update_api
 API_FQDN="$(az containerapp show -n nibras-api -g "$RG" --query 'properties.configuration.ingress.fqdn' -o tsv)"
 echo "API: https://${API_FQDN}"
 
-echo "Deploying nibras-web:$TAG ..."
+echo "Deploying nibras-web:${WEB_TAG} ..."
 create_or_update_web
 WEB_FQDN="$(az containerapp show -n nibras-web -g "$RG" --query 'properties.configuration.ingress.fqdn' -o tsv)"
 echo "Web: https://${WEB_FQDN}"
