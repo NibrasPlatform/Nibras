@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 5000
 
-CMD gunicorn --bind 0.0.0.0:5000 app:app
+CMD gunicorn --bind 0.0.0.0:5000 --timeout 120 --graceful-timeout 30 --workers 1 --threads 4 app:app

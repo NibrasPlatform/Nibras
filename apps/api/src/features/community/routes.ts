@@ -1488,7 +1488,7 @@ export function registerCommunityRoutes(
               context: body.context?.trim() ?? '',
             }),
           ),
-          signal: AbortSignal.timeout(30000),
+          signal: AbortSignal.timeout(120_000),
         });
         const rawBody = await resp.text().catch(() => '');
         let chatBotResponse: ChatBotV1Response | null = null;
@@ -1629,17 +1629,33 @@ export function registerCommunityRoutes(
       const access = await resolveTutorAccess(auth.user.id, reply);
       if (!access) return;
 
-      const upstream = await fetch(`${CHATBOT_V1_URL}/api/ask/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          await tutorRequestPayload(auth.user.id, {
-            question: body.question,
-            history: body.history ?? [],
-            context: body.context?.trim() ?? '',
-          }),
-        ),
-      });
+      let upstream: Response;
+      try {
+        upstream = await fetch(`${CHATBOT_V1_URL}/api/ask/stream`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            await tutorRequestPayload(auth.user.id, {
+              question: body.question,
+              history: body.history ?? [],
+              context: body.context?.trim() ?? '',
+            }),
+          ),
+          signal: AbortSignal.timeout(180_000),
+        });
+      } catch (err) {
+        const timedOut =
+          err instanceof Error &&
+          (err.name === 'TimeoutError' || err.name === 'AbortError');
+        reply.code(503).send(
+          Errors.unavailable(
+            timedOut
+              ? 'AI Tutor request timed out. Please try again.'
+              : 'AI Tutor stream failed.',
+          ),
+        );
+        return;
+      }
 
       if (!upstream.ok || !upstream.body) {
         reply.code(502).send(Errors.unavailable('AI Tutor stream failed.'));

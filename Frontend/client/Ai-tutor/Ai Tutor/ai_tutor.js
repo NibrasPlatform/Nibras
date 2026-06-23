@@ -118,7 +118,7 @@ window.NibrasReact.run(() => {
   let modalReturnFocus = null;
   let conversationId = null;
   let chatHistory = [];
-  let useStreaming = false;
+  let useStreaming = true;
 
   const getAuthToken = () =>
     sharedAuth?.getToken?.() || window.NibrasApi?.getToken?.() || null;
@@ -684,6 +684,7 @@ window.NibrasReact.run(() => {
             ...askOptions,
             onToken: (_chunk, full) => {
               streamText = full;
+              setTutorNotice('info', '');
               renderFullAnswer(streamText);
             },
           });

@@ -224,6 +224,7 @@
       response = await settings.fetchImpl(requestUrl, {
         method: options.method || 'GET',
         headers,
+        credentials: 'include',
         body: options.body ? JSON.stringify(options.body) : undefined,
       });
     } catch (cause) {

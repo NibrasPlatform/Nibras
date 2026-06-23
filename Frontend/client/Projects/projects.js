@@ -105,7 +105,7 @@ window.NibrasReact.run(function () {
   if (sel) {
     sel.addEventListener('change', function () {
       if (this.value) void loadCourse(this.value);
-      else showEmpty();
+      else showSelectCourseEmpty();
     });
   }
 
@@ -123,23 +123,52 @@ function setMsg(msg, type) {
   else el.style.color = '';
 }
 
-function showEmpty() {
-  document.getElementById('projects-hero').style.display = 'none';
-  document.getElementById('progress-container').style.display = 'none';
-  document.getElementById('project-grid').style.display = 'none';
-  document.getElementById('projects-empty').style.display = '';
+function hideCoursePanels() {
+  var hero = document.getElementById('projects-hero');
+  var progress = document.getElementById('progress-container');
+  var grid = document.getElementById('project-grid');
+  var empty = document.getElementById('projects-empty');
+  var loading = document.getElementById('projects-loading');
   var tabs = document.getElementById('projects-context-tabs');
+  if (hero) hero.style.display = 'none';
+  if (progress) progress.style.display = 'none';
+  if (grid) grid.style.display = 'none';
+  if (empty) empty.style.display = 'none';
+  if (loading) loading.style.display = 'none';
   if (tabs) tabs.style.display = 'none';
+}
+
+function showSelectCourseEmpty() {
+  hideCoursePanels();
+  var empty = document.getElementById('projects-empty');
+  if (empty) empty.style.display = '';
   setMsg('', '');
 }
 
-function showContent() {
-  document.getElementById('projects-empty').style.display = 'none';
-  document.getElementById('projects-hero').style.display = '';
-  document.getElementById('progress-container').style.display = '';
-  document.getElementById('project-grid').style.display = '';
+function showLoadingCourse() {
+  hideCoursePanels();
+  var loading = document.getElementById('projects-loading');
+  if (loading) loading.style.display = '';
+}
+
+function showCourseContent() {
+  hideCoursePanels();
+  var hero = document.getElementById('projects-hero');
+  var progress = document.getElementById('progress-container');
+  var grid = document.getElementById('project-grid');
   var tabs = document.getElementById('projects-context-tabs');
+  if (hero) hero.style.display = '';
+  if (progress) progress.style.display = '';
+  if (grid) grid.style.display = '';
   if (tabs) tabs.style.display = '';
+}
+
+function showEmpty() {
+  showSelectCourseEmpty();
+}
+
+function showContent() {
+  showCourseContent();
 }
 
 function normalizeMatchToken(value) {
@@ -354,6 +383,22 @@ function esc(str) {
   return d.innerHTML;
 }
 
+function resolveStoredCourseTarget(courses) {
+  var storedId = localStorage.getItem('selectedCourseId') || '';
+  if (!storedId) return '';
+
+  if (findCourseEntry(storedId)) return storedId;
+
+  var byTracking = courses.find(function (c) {
+    return c.trackingCourseId === storedId;
+  });
+  if (byTracking) {
+    return byTracking.localCourseId || byTracking.trackingCourseId;
+  }
+
+  return '';
+}
+
 async function loadDropdown() {
   var sel = document.getElementById('course-select');
   if (!sel) return;
@@ -418,17 +463,20 @@ async function loadDropdown() {
     if (!target && courses.length === 1) {
       target = courses[0].localCourseId || courses[0].trackingCourseId;
     }
+    if (!target) {
+      target = resolveStoredCourseTarget(courses);
+    }
 
     if (target) {
       sel.value = target;
       await loadCourse(target);
     } else {
-      showEmpty();
+      showSelectCourseEmpty();
     }
   } catch (error) {
     sel.innerHTML = '<option value="">Failed to load</option>';
     setMsg(error?.message || 'Failed to load courses.', 'error');
-    showEmpty();
+    showSelectCourseEmpty();
   }
 }
 
@@ -449,15 +497,18 @@ function updateHeroFromCourse(entry, catalogCourse) {
 
 async function loadCourse(courseId) {
   if (!courseId) {
-    showEmpty();
+    showSelectCourseEmpty();
     return;
   }
 
   if (!window.NibrasProjectsCore) {
+    showLoadingCourse();
     setMsg('Projects core module failed to load.', 'error');
-    showEmpty();
     return;
   }
+
+  showLoadingCourse();
+  setMsg('Loading projects...', 'loading');
 
   projectsPage.courseId = courseId;
   var entry = findCourseEntry(courseId);
@@ -467,8 +518,6 @@ async function loadCourse(courseId) {
     typeof nc?.getCourseById === 'function'
       ? nc.getCourseById(localCourseId)
       : null;
-
-  setMsg('Loading projects...', 'loading');
 
   try {
     var trackingCourseId = await resolveTrackingCourseIdForLoad(
@@ -482,18 +531,17 @@ async function loadCourse(courseId) {
         ? '../Courses/Course Description/courseContent.html?courseId=' +
           encodeURIComponent(catalogCourse.id)
         : '../Courses/courses.html';
-      setMsg(
-        'Projects require enrollment. Open the course page to enroll, then return here.',
-        'error',
-      );
+      showCourseContent();
       var notice = document.getElementById('projects-api-notice');
       if (notice) {
+        notice.hidden = false;
+        notice.style.display = '';
+        notice.style.color = '#ef4444';
         notice.innerHTML =
           'Projects require enrollment. <a href="' +
           esc(enrollHref) +
           '">Go to course</a>';
       }
-      showEmpty();
       return;
     }
 
@@ -502,7 +550,7 @@ async function loadCourse(courseId) {
     localStorage.setItem('selectedCourseId', localCourseId || courseId);
 
     updateHeroFromCourse(entry, catalogCourse || entry);
-    showContent();
+    showCourseContent();
 
     await window.NibrasProjectsCore.init(trackingCourseId, {
       localCourseId: localCourseId,
@@ -516,8 +564,8 @@ async function loadCourse(courseId) {
       window.NibrasProjectsCore.renderActivityFeed(activeProjectId);
     }
   } catch (error) {
+    showCourseContent();
     setMsg(error?.message || 'Failed to load projects.', 'error');
-    showEmpty();
   }
 }
 

@@ -398,6 +398,15 @@
       return 'Too many attempts. Please wait a moment before trying again.';
     }
 
+    if (
+      typeof rawText === 'string' &&
+      /upstream connect error|connection termination|disconnect\/reset before headers/i.test(
+        rawText,
+      )
+    ) {
+      return 'The AI Tutor took too long or the service restarted. Please try again in a moment.';
+    }
+
     const candidates = [
       serverMessage || null,
       payload?.message,
@@ -1547,6 +1556,7 @@
         method: 'POST',
         auth: true,
         body,
+        timeoutMs: 120000,
       });
       return normalizeAskResponse(payload);
     },

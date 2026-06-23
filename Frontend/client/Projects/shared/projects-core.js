@@ -80,6 +80,17 @@ const projectsApiClient =
       null,
   }) || null;
 
+var projectsLoadToken = 0;
+
+function resetProjectsUiState() {
+  projectsPageState.ui.projects = [];
+  projectsPageState.activeProjectId = '';
+  var tabsRoot = document.getElementById('projectListTabs');
+  if (tabsRoot) tabsRoot.innerHTML = '';
+  var detailsHost = document.getElementById('projectDetailsHost');
+  if (detailsHost) detailsHost.innerHTML = '';
+}
+
 function trackingProjects() {
   return window.NibrasServices?.trackingProjectService || null;
 }
@@ -118,8 +129,11 @@ async function resolveEnrolledTrackingCourseId(course) {
 
 async function initProjectsCore(trackingCourseId, options) {
   options = options || {};
+  var loadToken = ++projectsLoadToken;
+
   projectsPageState.trackingCourseId = String(trackingCourseId || '');
   projectsPageState.courseId = String(options.localCourseId || '');
+  resetProjectsUiState();
 
   initCourseProjectsCliHelp();
 
@@ -134,11 +148,14 @@ async function initProjectsCore(trackingCourseId, options) {
     submitForm._nibrasBound = true;
   }
 
-  return loadProjectsOverview(Boolean(options.forceRefresh));
+  return loadProjectsOverview(Boolean(options.forceRefresh), loadToken);
 }
 
-async function loadProjectsOverview(forceRefresh) {
+async function loadProjectsOverview(forceRefresh, loadToken) {
+  var token = loadToken != null ? loadToken : projectsLoadToken;
+
   if (!projectsApiClient) {
+    if (token !== projectsLoadToken) return;
     setApiNotice('Projects API is not configured.', 'error');
     return;
   }
@@ -148,6 +165,7 @@ async function loadProjectsOverview(forceRefresh) {
   if (!forceRefresh) {
     var cached = projectsCache.get(cacheKey);
     if (cached) {
+      if (token !== projectsLoadToken) return;
       mergeOverviewToState(cached);
       renderProjects();
       updateHeaderStats();
@@ -162,6 +180,7 @@ async function loadProjectsOverview(forceRefresh) {
     const response = await projectsApiClient.getProjectsOverview({
       courseId: projectsPageState.trackingCourseId,
     });
+    if (token !== projectsLoadToken) return;
     const payload = response?.data || {};
     projectsCache.set(cacheKey, payload);
     mergeOverviewToState(payload);
@@ -174,6 +193,7 @@ async function loadProjectsOverview(forceRefresh) {
     );
     setGroupWorkspaceStatus('ok', 'Tracking API connection is active.');
   } catch (error) {
+    if (token !== projectsLoadToken) return;
     var cached = projectsCache.get(cacheKey);
     if (cached) {
       mergeOverviewToState(cached);
@@ -189,6 +209,7 @@ async function loadProjectsOverview(forceRefresh) {
     }
     const message = formatRequestError(error, 'Unable to load projects.');
     setApiNotice(message, 'error');
+    renderProjects();
     setGroupWorkspaceStatus('error', 'API status: ' + message);
   }
 }
@@ -974,6 +995,7 @@ function setApiNotice(message, type) {
   const element = document.getElementById('projects-api-notice');
   if (!element) return;
   element.hidden = !message;
+  element.style.display = message ? '' : 'none';
   element.textContent = message;
   element.style.color = type === 'error' ? 'red' : 'var(--text-secondary)';
 }

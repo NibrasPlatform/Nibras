@@ -1225,17 +1225,19 @@ def ask_stream():
     if not question:
         return jsonify({"error": "Question is required"}), 400
 
-    full_context, citations, _match, oai_client, chat_model, client_err = _prepare_ask_context(
-        body, question
-    )
-    if client_err:
-        return jsonify(client_err), 503
-
     history = body.get("history", [])
     using_personal = request_uses_personal_api_key(body)
     provider = (body.get("provider") or "").strip()
 
     def generate():
+        yield ": preparing\n\n"
+        full_context, citations, _match, oai_client, chat_model, client_err = _prepare_ask_context(
+            body, question
+        )
+        if client_err:
+            err_msg = client_err.get("message", "LLM unavailable") if isinstance(client_err, dict) else "LLM unavailable"
+            yield f"data: {json.dumps({'type': 'error', 'message': err_msg})}\n\n"
+            return
         try:
             system_content = SYSTEM_PROMPT
             if full_context:
