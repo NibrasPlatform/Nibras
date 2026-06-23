@@ -13,7 +13,7 @@ COPY packages/grading/package.json ./packages/grading/
 COPY packages/github/package.json ./packages/github/
 COPY packages/daily-problem/package.json ./packages/daily-problem/
 COPY prisma ./prisma
-RUN npm ci --workspace=@nibras/worker --workspace=@nibras/api --workspace=@nibras/contracts --workspace=@nibras/core --workspace=@nibras/daily-problem --workspace=@nibras/grading --workspace=@nibras/github --include-workspace-root
+RUN npm ci --workspace=@nibras/worker --workspace=@nibras/api --workspace=@nibras/contracts --workspace=@nibras/core --workspace=@nibras/daily-problem --workspace=@nibras/grading --workspace=@nibras/github --include-workspace-root --ignore-scripts
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 FROM deps AS build

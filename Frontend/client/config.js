@@ -96,8 +96,15 @@
     ? LOCAL_GATEWAY
     : productionGateway;
   const DEFAULT_RECOMMENDATION_API =
+    (typeof window !== 'undefined' &&
+      (window.NIBRAS_AZURE_RECOMMENDATION_API ||
+        window.NibrasAzureServices?.recommendationApi)) ||
     'https://recommendationmodel-production-c22c.up.railway.app/api/recommend';
-  const DEFAULT_COURSES_API = 'https://nibras-backend.up.railway.app/api';
+  const DEFAULT_COURSES_API =
+    (typeof window !== 'undefined' &&
+      (window.NIBRAS_AZURE_COURSES_API ||
+        window.NibrasAzureServices?.coursesApi)) ||
+    'https://nibras-backend.up.railway.app/api';
   const DEFAULT_GOOGLE_CLIENT_ID =
     '561316297025-c9ohua7q6sa91nn2eetsprac65a3oog6.apps.googleusercontent.com';
 

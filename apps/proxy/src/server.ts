@@ -252,10 +252,26 @@ function serveStaticFile(
   return true;
 }
 
+function buildAzureServicesConfigScript(): string {
+  return buildOAuthConfigScript();
+}
+
+function serveAzureServicesConfig(response: ServerResponse<IncomingMessage>): void {
+  response.writeHead(200, {
+    'content-type': 'application/javascript; charset=utf-8',
+    'cache-control': 'no-cache',
+  });
+  response.end(buildAzureServicesConfigScript());
+}
+
 function buildOAuthConfigScript(): string {
   const googleClientId = (process.env.NIBRAS_GOOGLE_CLIENT_ID || '').trim();
   const microsoftClientId = (
     process.env.NIBRAS_MICROSOFT_CLIENT_ID || ''
+  ).trim();
+  const coursesApi = (process.env.NIBRAS_COURSES_API_URL || '').trim();
+  const recommendationApi = (
+    process.env.NIBRAS_RECOMMENDATION_API_URL || ''
   ).trim();
   const lines = ['window.NibrasApiConfig = window.NibrasApiConfig || {};'];
   if (googleClientId) {
@@ -272,6 +288,16 @@ function buildOAuthConfigScript(): string {
     );
     lines.push(
       `window.NibrasApiConfig.microsoftClientId = ${JSON.stringify(microsoftClientId)};`,
+    );
+  }
+  if (coursesApi) {
+    lines.push(
+      `window.NIBRAS_AZURE_COURSES_API = ${JSON.stringify(coursesApi)};`,
+    );
+  }
+  if (recommendationApi) {
+    lines.push(
+      `window.NIBRAS_AZURE_RECOMMENDATION_API = ${JSON.stringify(recommendationApi)};`,
     );
   }
   return `${lines.join('\n')}\n`;
@@ -332,6 +358,10 @@ export function buildProxyServer(config: Partial<ProxyConfig> = {}): Server {
     const pathname = new URL(originalUrl, 'http://localhost').pathname;
     if (pathname === '/oauth-config.js') {
       serveOAuthConfig(response);
+      return;
+    }
+    if (pathname === '/azure-services-config.js') {
+      serveAzureServicesConfig(response);
       return;
     }
 
