@@ -26,8 +26,36 @@
     'jwt',
   ];
 
-  const LOCAL_GATEWAY = 'http://localhost:8080';
-  const PRODUCTION_GATEWAY = 'https://web-production-3011ec.up.railway.app';
+  const LOCAL_GATEWAY =
+    window.NibrasGateway?.LOCAL_GATEWAY || 'http://localhost:8080';
+  const PRODUCTION_GATEWAY =
+    window.NibrasGateway?.PRODUCTION_GATEWAY ||
+    'https://web-production-3011ec.up.railway.app';
+
+  const getPageOrigin = () => {
+    try {
+      return window.location.origin;
+    } catch (_) {
+      return '';
+    }
+  };
+
+  const readStoredUrl = (key) => {
+    const gw = window.NibrasGateway;
+    const pageOrigin = getPageOrigin();
+    const onGateway = gw
+      ? gw.isGatewayHost(window.location.hostname)
+      : false;
+    if (gw) {
+      return gw.readStoredApiUrl(
+        window.localStorage,
+        key,
+        pageOrigin,
+        onGateway,
+      );
+    }
+    return safeStorageGet(window.localStorage, key);
+  };
 
   const normalizeToken = (token) => {
     if (typeof token !== 'string') return null;
@@ -134,33 +162,43 @@
       params = new URLSearchParams(window.location.search);
     } catch (_) {}
 
-    const isLocalHost = (() => {
-      try {
-        return ['localhost', '127.0.0.1'].includes(window.location.hostname);
-      } catch (_) {
-        return false;
-      }
-    })();
+    const gw = window.NibrasGateway;
+    const isLocalHost = gw
+      ? gw.isLocalHost(window.location.hostname)
+      : (() => {
+          try {
+            return ['localhost', '127.0.0.1'].includes(
+              window.location.hostname,
+            );
+          } catch (_) {
+            return false;
+          }
+        })();
 
-    const isGatewayHost = (() => {
-      try {
-        const host = window.location.hostname;
-        if (isLocalHost) return true;
-        if (host.includes('vercel.app')) return true;
-        if (host.includes('railway.app') && !host.startsWith('api-')) {
-          return true;
-        }
-        return false;
-      } catch (_) {
-        return false;
-      }
-    })();
+    const isGatewayHost = gw
+      ? gw.isGatewayHost(window.location.hostname)
+      : (() => {
+          try {
+            const host = window.location.hostname;
+            if (isLocalHost) return true;
+            if (host.includes('vercel.app')) return true;
+            if (host.includes('azurecontainerapps.io')) return true;
+            if (host.includes('railway.app') && !host.startsWith('api-')) {
+              return true;
+            }
+            return false;
+          } catch (_) {
+            return false;
+          }
+        })();
 
-    const defaultGateway = isLocalHost
-      ? LOCAL_GATEWAY
-      : isGatewayHost
-        ? window.location.origin
-        : PRODUCTION_GATEWAY;
+    const defaultGateway = gw
+      ? gw.gatewayOrigin(window.location, PRODUCTION_GATEWAY)
+      : isLocalHost
+        ? LOCAL_GATEWAY
+        : isGatewayHost
+          ? getPageOrigin()
+          : PRODUCTION_GATEWAY;
 
     const defaultAdminApi = isLocalHost
       ? `${LOCAL_GATEWAY}/api`
@@ -171,8 +209,8 @@
         readFirst(
           params && params.get('api'),
           params && params.get('adminApi'),
-          safeStorageGet(window.localStorage, 'nibras_admin_api_url'),
-          safeStorageGet(window.localStorage, 'nibras_api_url'),
+          readStoredUrl('nibras_admin_api_url'),
+          readStoredUrl('nibras_api_url'),
           window.NIBRAS_BACKEND_URL,
           defaultAdminApi,
         ),

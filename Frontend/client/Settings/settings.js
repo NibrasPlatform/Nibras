@@ -15,6 +15,8 @@ window.NibrasReact.run(() => {
     (() => null);
 
   function resolveGatewayOrigin() {
+    const gw = window.NibrasGateway;
+    if (gw) return gw.gatewayOrigin(window.location);
     try {
       const host = window.location.hostname;
       if (host === 'localhost' || host === '127.0.0.1') {
@@ -22,6 +24,7 @@ window.NibrasReact.run(() => {
       }
       if (
         host.includes('vercel.app') ||
+        host.includes('azurecontainerapps.io') ||
         (host.includes('railway.app') && !host.startsWith('api-'))
       ) {
         return window.location.origin;

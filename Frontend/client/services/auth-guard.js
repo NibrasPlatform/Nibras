@@ -13,7 +13,11 @@
   var loginPage =
     script.getAttribute('data-login') || '../../Login/loginPage/login.html';
 
-  var apiBase = session.resolveAdminApiUrl();
+  var apiBase =
+    (window.NibrasApiConfig &&
+      typeof window.NibrasApiConfig.getServiceUrl === 'function' &&
+      window.NibrasApiConfig.getServiceUrl('admin')) ||
+    session.resolveAdminApiUrl();
 
   function redirectToLogin() {
     window.location.replace(loginPage);

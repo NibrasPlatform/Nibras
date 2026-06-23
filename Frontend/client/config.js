@@ -31,31 +31,54 @@
  * 3. Defaults below
  */
 (function () {
+  const gw = window.NibrasGateway;
+  const PRODUCTION_API = gw?.PRODUCTION_GATEWAY || 'https://web-production-3011ec.up.railway.app';
+  const LOCAL_GATEWAY = gw?.LOCAL_GATEWAY || 'http://localhost:8080';
+
   const isLocalHost = (() => {
     try {
+      if (gw) return gw.isLocalHost(window.location.hostname);
       return ['localhost', '127.0.0.1'].includes(window.location.hostname);
     } catch (_) {
       return false;
     }
   })();
 
-  const LOCAL_GATEWAY = 'http://localhost:8080';
-  const PRODUCTION_API = 'https://web-production-3011ec.up.railway.app';
   const isGatewayHost = (() => {
     try {
+      if (gw) return gw.isGatewayHost(window.location.hostname);
       const host = window.location.hostname;
       if (isLocalHost) return true;
       if (host.includes('vercel.app')) return true;
+      if (host.includes('azurecontainerapps.io')) return true;
       if (host.includes('railway.app') && !host.startsWith('api-')) return true;
       return false;
     } catch (_) {
       return false;
     }
   })();
+
+  const pageOrigin = (() => {
+    try {
+      return window.location.origin;
+    } catch (_) {
+      return '';
+    }
+  })();
+
+  const readStoredUrl = (key) => {
+    if (gw) return gw.readStoredApiUrl(localStorage, key, pageOrigin, isGatewayHost);
+    try {
+      return localStorage.getItem(key);
+    } catch (_) {
+      return null;
+    }
+  };
+
   const DEFAULT_GATEWAY = isLocalHost
     ? LOCAL_GATEWAY
     : isGatewayHost
-      ? window.location.origin
+      ? pageOrigin || window.location.origin
       : PRODUCTION_API;
   let productionGateway = DEFAULT_GATEWAY;
   const DEFAULT_MONOLITH_API = isLocalHost
@@ -67,7 +90,7 @@
   var DEFAULT_TRACKING_API = isLocalHost
     ? LOCAL_GATEWAY
     : isGatewayHost
-      ? window.location.origin
+      ? pageOrigin || window.location.origin
       : PRODUCTION_API;
   const DEFAULT_COMPETITIONS_API = isLocalHost
     ? LOCAL_GATEWAY
@@ -167,8 +190,8 @@
       readFirst(
         params.get('api'),
         params.get('adminApi'),
-        localStorage.getItem('nibras_admin_api_url'),
-        localStorage.getItem('nibras_api_url'),
+        readStoredUrl('nibras_admin_api_url'),
+        readStoredUrl('nibras_api_url'),
         window.NIBRAS_API_URL,
         window.NIBRAS_BACKEND_URL,
         DEFAULT_ADMIN_API,
@@ -179,7 +202,7 @@
     ensureGatewayBaseUrl(
       readFirst(
         params.get('legacyApi'),
-        localStorage.getItem('nibras_legacy_api_url'),
+        readStoredUrl('nibras_legacy_api_url'),
         DEFAULT_LEGACY_API,
       ),
     ) || DEFAULT_LEGACY_API;
@@ -189,7 +212,7 @@
       readFirst(
         params.get('communityApi'),
         params.get('discussionsApi'),
-        localStorage.getItem('nibras_community_api_url'),
+        readStoredUrl('nibras_community_api_url'),
         DEFAULT_COMMUNITY_API,
       ),
     ) || DEFAULT_COMMUNITY_API;
@@ -198,7 +221,7 @@
     const raw = readFirst(
       params.get('trackingApi'),
       params.get('trackApi'),
-      localStorage.getItem('nibras_tracking_api_url'),
+      readStoredUrl('nibras_tracking_api_url'),
       DEFAULT_TRACKING_API,
     );
     if (!raw) return DEFAULT_TRACKING_API;
@@ -233,7 +256,7 @@
       readFirst(
         params.get('competitionsApi'),
         params.get('compApi'),
-        localStorage.getItem('nibras_competitions_api_url'),
+        readStoredUrl('nibras_competitions_api_url'),
         DEFAULT_COMPETITIONS_API,
       ),
     ) || DEFAULT_COMPETITIONS_API;
@@ -244,7 +267,7 @@
         params.get('recommendationApi'),
         params.get('recommendApi'),
         params.get('recApi'),
-        localStorage.getItem('nibras_recommendation_api_url'),
+        readStoredUrl('nibras_recommendation_api_url'),
         window.NIBRAS_RECOMMENDATION_API_URL,
         DEFAULT_RECOMMENDATION_API,
       ),
@@ -255,7 +278,7 @@
       readFirst(
         params.get('coursesApi'),
         params.get('courseApi'),
-        localStorage.getItem('nibras_courses_api_url'),
+        readStoredUrl('nibras_courses_api_url'),
         DEFAULT_COURSES_API,
       ),
     ) || DEFAULT_COURSES_API;
