@@ -16,12 +16,48 @@ window.NibrasReact.run(() => {
   const sharedUiStates = window.NibrasShared?.uiStates || null;
 
   const quickTopics = [
-    { title: 'Binary Search', sub: 'Algorithms', icon: 'fa-solid fa-magnifying-glass', iconColor: 'text-primary', bg: 'transparent' },
-    { title: 'Tree Traversal', sub: 'Data Structures', icon: 'fa-solid fa-network-wired', iconColor: '#16a34a', bg: '#dcfce7' },
-    { title: 'Dynamic Programming', sub: 'Problem Solving', icon: 'fa-solid fa-bolt', iconColor: '#ca8a04', bg: '#fef9c3' },
-    { title: 'Graph Algorithms', sub: 'Algorithms', icon: 'fa-solid fa-chart-simple', iconColor: '#2563eb', bg: '#dbeafe' },
-    { title: 'Linked Lists', sub: 'Data Structures', icon: 'fa-solid fa-link', iconColor: '#4b5563', bg: '#f3f4f6' },
-    { title: 'Greedy Algorithms', sub: 'Problem Solving', icon: 'fa-solid fa-bullseye', iconColor: '#dc2626', bg: '#fee2e2' },
+    {
+      title: 'Binary Search',
+      sub: 'Algorithms',
+      icon: 'fa-solid fa-magnifying-glass',
+      iconColor: 'text-primary',
+      bg: 'transparent',
+    },
+    {
+      title: 'Tree Traversal',
+      sub: 'Data Structures',
+      icon: 'fa-solid fa-network-wired',
+      iconColor: '#16a34a',
+      bg: '#dcfce7',
+    },
+    {
+      title: 'Dynamic Programming',
+      sub: 'Problem Solving',
+      icon: 'fa-solid fa-bolt',
+      iconColor: '#ca8a04',
+      bg: '#fef9c3',
+    },
+    {
+      title: 'Graph Algorithms',
+      sub: 'Algorithms',
+      icon: 'fa-solid fa-chart-simple',
+      iconColor: '#2563eb',
+      bg: '#dbeafe',
+    },
+    {
+      title: 'Linked Lists',
+      sub: 'Data Structures',
+      icon: 'fa-solid fa-link',
+      iconColor: '#4b5563',
+      bg: '#f3f4f6',
+    },
+    {
+      title: 'Greedy Algorithms',
+      sub: 'Problem Solving',
+      icon: 'fa-solid fa-bullseye',
+      iconColor: '#dc2626',
+      bg: '#fee2e2',
+    },
   ];
 
   const popularTopics = [
@@ -56,7 +92,9 @@ window.NibrasReact.run(() => {
   const closeModalBtn = document.getElementById('close-modal-btn');
   const cancelModalBtn = document.getElementById('cancel-modal-btn');
   const confirmPushBtn = document.getElementById('confirm-push-btn');
-  const modalQuestionDisplay = document.getElementById('modal-question-display');
+  const modalQuestionDisplay = document.getElementById(
+    'modal-question-display',
+  );
   const modalAnswerDisplay = document.getElementById('modal-answer-display');
   const modalTitleInput = document.getElementById('modal-title-input');
   const modalTagsDisplay = document.getElementById('modal-tags-display');
@@ -328,7 +366,10 @@ window.NibrasReact.run(() => {
       ]);
       renderRecentConversations(conversations);
       renderStats(insights?.hardMetrics || null);
-      if (insights?.aiSummary?.overallAssessment && !insights?.hardMetrics?.totalQuestions) {
+      if (
+        insights?.aiSummary?.overallAssessment &&
+        !insights?.hardMetrics?.totalQuestions
+      ) {
         renderStats({ totalQuestions: 0, streakDays: 0, topTags: [] });
       }
     } catch (_) {
@@ -370,7 +411,8 @@ window.NibrasReact.run(() => {
     });
     if (citationsContainer) citationsContainer.style.display = 'none';
     if (followUpsContainer) followUpsContainer.style.display = 'none';
-    if (newChatBtn) newChatBtn.style.display = conversationId ? 'inline-flex' : 'none';
+    if (newChatBtn)
+      newChatBtn.style.display = conversationId ? 'inline-flex' : 'none';
   };
 
   const ensureConversation = async (title) => {
@@ -381,7 +423,8 @@ window.NibrasReact.run(() => {
       (title || 'New conversation').slice(0, 120),
     );
     conversationId = conv?.id || null;
-    if (newChatBtn) newChatBtn.style.display = conversationId ? 'inline-flex' : 'none';
+    if (newChatBtn)
+      newChatBtn.style.display = conversationId ? 'inline-flex' : 'none';
     return conversationId;
   };
 
@@ -413,7 +456,12 @@ window.NibrasReact.run(() => {
       '<div style="font-size:0.85rem;font-weight:600;margin-bottom:8px;color:var(--text-secondary);"><i class="fa-solid fa-book-open"></i> Sources</div><div style="display:flex;flex-direction:column;gap:6px;">';
     sessionCitations.forEach((c) => {
       const title = escapeHtml(c.title || 'Community Q&A');
-      const url = c.url ? escapeHtml(c.url) : '#';
+      let url = c.url ? String(c.url) : '#';
+      const citationIdMatch = url.match(/\/community\/q\/([^/?#]+)/);
+      if (citationIdMatch) {
+        url = `../../Community/QuestionID/question.html?id=${encodeURIComponent(citationIdMatch[1])}`;
+      }
+      url = escapeHtml(url);
       html += `<a href="${url}" target="_blank" rel="noopener" style="font-size:0.9rem;color:var(--accent-blue);">${title}</a>`;
     });
     html += '</div>';
@@ -473,8 +521,7 @@ window.NibrasReact.run(() => {
 
   const renderMatchBanner = (targetBanner) => {
     if (!sessionMatchedQuestion || !targetBanner) return;
-    const questionId =
-      sessionMatchedQuestion._id || sessionMatchedQuestion.id;
+    const questionId = sessionMatchedQuestion._id || sessionMatchedQuestion.id;
     const questionUrl = `../../Community/QuestionID/question.html?id=${encodeURIComponent(questionId)}`;
     const authorName =
       sessionMatchedQuestion.author?.name ||
@@ -492,8 +539,7 @@ window.NibrasReact.run(() => {
     const viewBtn = targetBanner.querySelector('.btn-match-view');
 
     if (titleEl) {
-      titleEl.textContent =
-        sessionMatchedQuestion.title || 'Untitled Question';
+      titleEl.textContent = sessionMatchedQuestion.title || 'Untitled Question';
       titleEl.href = questionUrl;
       titleEl.dir = 'auto';
     }
@@ -584,11 +630,17 @@ window.NibrasReact.run(() => {
       return;
     }
     if (trimmed.length < ASK_MIN) {
-      setTutorNotice('error', `Your question must be at least ${ASK_MIN} characters.`);
+      setTutorNotice(
+        'error',
+        `Your question must be at least ${ASK_MIN} characters.`,
+      );
       return;
     }
     if (trimmed.length > ASK_MAX) {
-      setTutorNotice('error', `Your question cannot exceed ${ASK_MAX} characters.`);
+      setTutorNotice(
+        'error',
+        `Your question cannot exceed ${ASK_MAX} characters.`,
+      );
       return;
     }
     if (!getAuthToken()) {
@@ -597,7 +649,10 @@ window.NibrasReact.run(() => {
     }
     const svc = chatbotService();
     if (!svc) {
-      setTutorNotice('error', 'AI Tutor service is not loaded. Refresh the page.');
+      setTutorNotice(
+        'error',
+        'AI Tutor service is not loaded. Refresh the page.',
+      );
       return;
     }
 
@@ -635,7 +690,12 @@ window.NibrasReact.run(() => {
           if (!data?.finalAnswer && streamText) {
             data = svc.normalizeAskResponse
               ? svc.normalizeAskResponse({ answer: streamText })
-              : { finalAnswer: streamText, hints: [], tags: [], refused: false };
+              : {
+                  finalAnswer: streamText,
+                  hints: [],
+                  tags: [],
+                  refused: false,
+                };
           }
         } catch (_) {
           data = await svc.ask(trimmed, askOptions);
@@ -666,7 +726,9 @@ window.NibrasReact.run(() => {
       chatHistory = (conv.messages || [])
         .filter((m) => m.role === 'user' || m.role === 'assistant')
         .map((m) => ({ role: m.role, content: m.content }));
-      const lastUser = [...chatHistory].reverse().find((m) => m.role === 'user');
+      const lastUser = [...chatHistory]
+        .reverse()
+        .find((m) => m.role === 'user');
       const lastAssistant = [...chatHistory]
         .reverse()
         .find((m) => m.role === 'assistant');
@@ -736,7 +798,8 @@ window.NibrasReact.run(() => {
       xaiHtml += '</div></div>';
     }
     explainContent.innerHTML = DOMPurify.sanitize(
-      xaiHtml || '<p style="color:var(--text-secondary);">No explanation available.</p>',
+      xaiHtml ||
+        '<p style="color:var(--text-secondary);">No explanation available.</p>',
     );
 
     explainContent.querySelectorAll('.explain-term-btn').forEach((btn) => {
@@ -775,14 +838,18 @@ window.NibrasReact.run(() => {
   // --- Event listeners ---
   document.querySelectorAll('.nav-link').forEach((link) => {
     link.addEventListener('click', () => {
-      document.querySelectorAll('.nav-link').forEach((n) => n.classList.remove('active'));
+      document
+        .querySelectorAll('.nav-link')
+        .forEach((n) => n.classList.remove('active'));
       link.classList.add('active');
     });
   });
 
   document.querySelectorAll('.ai-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.ai-tab').forEach((t) => t.classList.remove('active'));
+      document
+        .querySelectorAll('.ai-tab')
+        .forEach((t) => t.classList.remove('active'));
       tab.classList.add('active');
     });
   });
@@ -847,7 +914,9 @@ window.NibrasReact.run(() => {
     interactionTitle.style.display = 'none';
     renderFullAnswer();
     fullAnswerContainer.style.display = 'block';
-    const matchBannerFull = document.getElementById('community-match-banner-full');
+    const matchBannerFull = document.getElementById(
+      'community-match-banner-full',
+    );
     if (sessionMatchedQuestion && matchBannerFull) {
       renderMatchBanner(matchBannerFull);
     }
@@ -887,7 +956,10 @@ window.NibrasReact.run(() => {
 
   pushCommunityBtn?.addEventListener('click', () => {
     if (!sessionQuestion || !sessionFinalAnswer) {
-      setTutorNotice('empty', 'View the full answer before posting to the community.');
+      setTutorNotice(
+        'empty',
+        'View the full answer before posting to the community.',
+      );
       return;
     }
     modalQuestionDisplay.textContent = sessionQuestion;
@@ -918,7 +990,9 @@ window.NibrasReact.run(() => {
     explainModal.style.display = 'none';
     explainModal.setAttribute('aria-hidden', 'true');
   };
-  document.getElementById('close-explain-btn')?.addEventListener('click', closeExplainModal);
+  document
+    .getElementById('close-explain-btn')
+    ?.addEventListener('click', closeExplainModal);
   document
     .getElementById('close-explain-modal-btn')
     ?.addEventListener('click', closeExplainModal);
@@ -949,7 +1023,10 @@ window.NibrasReact.run(() => {
       return;
     }
     if (!getAuthToken()) {
-      setTutorNotice('unauthorized', 'Please sign in to publish to the community.');
+      setTutorNotice(
+        'unauthorized',
+        'Please sign in to publish to the community.',
+      );
       return;
     }
     if (!sessionQuestion || !sessionFinalAnswer) {
@@ -978,7 +1055,9 @@ window.NibrasReact.run(() => {
       rememberAiPublishedQuestion(id, sessionFinalAnswer);
       closeModal();
       if (id) {
-        const go = confirm('Published to the community. Open the new question now?');
+        const go = confirm(
+          'Published to the community. Open the new question now?',
+        );
         if (go) {
           window.location.href = `../../Community/QuestionID/question.html?id=${encodeURIComponent(id)}`;
         } else {

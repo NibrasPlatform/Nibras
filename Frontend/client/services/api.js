@@ -1112,20 +1112,26 @@
     },
 
     async bookmark(id) {
-      return apiFetch(`/v1/community/questions/${encodeURIComponent(String(id || ''))}/bookmark`, {
-        service: 'legacyCommunity',
-        method: 'POST',
-        auth: true,
-        body: {},
-      });
+      return apiFetch(
+        `/v1/community/questions/${encodeURIComponent(String(id || ''))}/bookmark`,
+        {
+          service: 'legacyCommunity',
+          method: 'POST',
+          auth: true,
+          body: {},
+        },
+      );
     },
 
     async removeBookmark(id) {
-      return apiFetch(`/v1/community/questions/${encodeURIComponent(String(id || ''))}/bookmark`, {
-        service: 'legacyCommunity',
-        method: 'DELETE',
-        auth: true,
-      });
+      return apiFetch(
+        `/v1/community/questions/${encodeURIComponent(String(id || ''))}/bookmark`,
+        {
+          service: 'legacyCommunity',
+          method: 'DELETE',
+          auth: true,
+        },
+      );
     },
   };
 
@@ -1413,7 +1419,8 @@
         ban: 'ban',
         hide: 'hide',
       };
-      const action = actionMap[String(data?.action || '').toLowerCase()] || 'dismiss';
+      const action =
+        actionMap[String(data?.action || '').toLowerCase()] || 'dismiss';
       return apiFetch(`/v1/community/reports/${reportId}`, {
         service: 'legacyCommunity',
         method: 'PATCH',
@@ -1473,7 +1480,11 @@
   const normalizeAskResponse = (payload) => {
     const raw = unwrapApiData(payload) || payload || {};
     const answer = String(raw.answer ?? raw.finalAnswer ?? '').trim();
-    const refused = Boolean(raw.refused);
+    const refused =
+      Boolean(raw.refused) ||
+      String(raw.status || '')
+        .trim()
+        .toLowerCase() === 'off_topic';
     return {
       answer,
       finalAnswer: answer,
@@ -2246,14 +2257,11 @@
      * @returns {Promise<{posts: Array}>}
      */
     async listByThread(threadId) {
-      const payload = await apiFetch(
-        `/v1/community/posts/thread/${threadId}`,
-        {
-          service: 'community',
-          method: 'GET',
-          auth: true,
-        },
-      );
+      const payload = await apiFetch(`/v1/community/posts/thread/${threadId}`, {
+        service: 'community',
+        method: 'GET',
+        auth: true,
+      });
       return normalizeCommunityPostList(payload);
     },
 
@@ -2705,7 +2713,10 @@
     const normalizedPath = String(path || '').startsWith('/api/')
       ? path
       : `/api${String(path || '').startsWith('/') ? path : `/${path}`}`;
-    return apiFetch(normalizedPath, Object.assign({}, options, { service: 'admin' }));
+    return apiFetch(
+      normalizedPath,
+      Object.assign({}, options, { service: 'admin' }),
+    );
   };
 
   const isCompetitionsCompatibilityRetryableError = (error) => {
@@ -2866,7 +2877,13 @@
         pagination:
           data?.pagination ||
           payload?.pagination ||
-          (items.length ? { total, page: filters.page || 1, limit: filters.limit || items.length } : null),
+          (items.length
+            ? {
+                total,
+                page: filters.page || 1,
+                limit: filters.limit || items.length,
+              }
+            : null),
       };
     },
 
@@ -3020,7 +3037,10 @@
         limit: filters.limit,
       });
       const payload = await requestCompetitionsWithCompatibility(
-        [`/user-contests/history${query}`, `/contests/user-contests/history${query}`],
+        [
+          `/user-contests/history${query}`,
+          `/contests/user-contests/history${query}`,
+        ],
         {
           method: 'GET',
           auth: true,
@@ -3145,10 +3165,13 @@
     },
 
     async getMyRanking() {
-      const payload = await requestCompetitionsWithCompatibility('/ranking/me', {
-        method: 'GET',
-        auth: true,
-      });
+      const payload = await requestCompetitionsWithCompatibility(
+        '/ranking/me',
+        {
+          method: 'GET',
+          auth: true,
+        },
+      );
       const data = unwrapApiData(payload);
       return Array.isArray(data) ? data : Array.isArray(payload) ? payload : [];
     },
@@ -3166,7 +3189,9 @@
       );
       const data = unwrapApiData(payload) || payload || {};
       return {
-        message: data?.message || (data?.verified ? 'Verified' : 'Verification checked'),
+        message:
+          data?.message ||
+          (data?.verified ? 'Verified' : 'Verification checked'),
         data,
       };
     },
@@ -3192,7 +3217,8 @@
     async getAggregatedProfile(userId) {
       const accounts = await this.listLinkedAccounts();
       const mapped =
-        typeof window !== 'undefined' && window.RankingAccounts?.mapLinkedAccounts
+        typeof window !== 'undefined' &&
+        window.RankingAccounts?.mapLinkedAccounts
           ? window.RankingAccounts.mapLinkedAccounts(accounts)
           : {
               linkedAccounts: Object.fromEntries(
@@ -3214,9 +3240,7 @@
 
     async syncProfile(options = {}) {
       const accounts = await this.listLinkedAccounts();
-      const hosts = accounts
-        .map((account) => account.host)
-        .filter(Boolean);
+      const hosts = accounts.map((account) => account.host).filter(Boolean);
       const results = [];
       for (const host of hosts) {
         results.push(await this.resyncAccount(host));
@@ -3489,7 +3513,9 @@
     },
 
     async inviteToTeam() {
-      throw new Error('Team invitations are not supported for standalone teams.');
+      throw new Error(
+        'Team invitations are not supported for standalone teams.',
+      );
     },
 
     async respondToInvite() {
@@ -4352,7 +4378,10 @@
   // ============================================================
   const coursesApiFetch = async (path, options = {}) => {
     try {
-      return await apiFetch(path, Object.assign({}, options, { service: 'courses' }));
+      return await apiFetch(
+        path,
+        Object.assign({}, options, { service: 'courses' }),
+      );
     } catch (error) {
       const status = Number(error?.status || error?.payload?.status || 0);
       if (status === 401 || status === 403) {
@@ -4414,10 +4443,13 @@
      * @returns {Promise<{success: boolean, data: object}>}
      */
     async getByLevel(level) {
-      return coursesApiFetch(`/courses/level/${encodeURIComponent(String(level))}`, {
-        method: 'GET',
-        auth: true,
-      });
+      return coursesApiFetch(
+        `/courses/level/${encodeURIComponent(String(level))}`,
+        {
+          method: 'GET',
+          auth: true,
+        },
+      );
     },
 
     /**
@@ -4930,14 +4962,11 @@
     },
 
     async getProfile(userId) {
-      return apiFetch(
-        `/v1/users/${encodeURIComponent(String(userId))}`,
-        {
-          service: 'tracking',
-          method: 'GET',
-          auth: true,
-        },
-      );
+      return apiFetch(`/v1/users/${encodeURIComponent(String(userId))}`, {
+        service: 'tracking',
+        method: 'GET',
+        auth: true,
+      });
     },
   };
 
@@ -4958,7 +4987,9 @@
       );
       const raw = unwrapApiData(res) || res || {};
       return {
-        badges: normalizeBadgesResponse(raw.badges != null ? { badges: raw.badges } : raw),
+        badges: normalizeBadgesResponse(
+          raw.badges != null ? { badges: raw.badges } : raw,
+        ),
         reputation: normalizeReputationResponse(raw.reputation || {}),
         newlyAwarded: normalizeBadgesResponse(
           raw.newlyAwarded != null ? { awarded: raw.newlyAwarded } : [],
@@ -5094,14 +5125,11 @@
     async getMyReputation(opts = {}) {
       const params = {};
       if (opts.sync) params.sync = 'true';
-      const res = await apiFetch(
-        `/reputation/me${toQueryString(params)}`,
-        {
-          service: 'admin',
-          method: 'GET',
-          auth: true,
-        },
-      );
+      const res = await apiFetch(`/reputation/me${toQueryString(params)}`, {
+        service: 'admin',
+        method: 'GET',
+        auth: true,
+      });
       return normalizeReputationResponse(res);
     },
 
