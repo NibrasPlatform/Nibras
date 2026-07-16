@@ -1060,6 +1060,36 @@ OUTPUT FORMAT — STRICT JSON ONLY
 """
 
 
+STREAM_OUTPUT_OVERRIDE = """
+STREAM MODE — override JSON format above:
+- Output plain markdown only (headings, lists, code blocks).
+- Do NOT output JSON, code fences wrapping JSON, or schema keys like "hint1".
+"""
+
+
+def coerce_stream_text(full_text: str) -> dict:
+    """If model returned JSON despite stream prompt, extract answer + metadata."""
+    text = (full_text or "").strip()
+    if text.startswith("{"):
+        try:
+            data = json.loads(text)
+            if isinstance(data, dict) and data.get("answer"):
+                return {
+                    "answer": data["answer"],
+                    "hints": [data.get(f"hint{i}", "") for i in (1, 2, 3)],
+                    "tags": data.get("tags") or [],
+                    "follow_ups": data.get("follow_ups") or [],
+                    "xai": {
+                        "reasoning": data.get("reasoning", ""),
+                        "concepts_used": data.get("concepts_used", []),
+                        "might_be_unclear": data.get("might_be_unclear", []),
+                    },
+                }
+        except json.JSONDecodeError:
+            pass
+    return {"answer": text, "hints": [], "tags": [], "follow_ups": [], "xai": None}
+
+
 # ── AI answer generation ──────────────────────────────────────────────────────
 def generate_ai_answer(
     question: str,
@@ -1239,12 +1269,9 @@ def ask_stream():
             yield f"data: {json.dumps({'type': 'error', 'message': err_msg})}\n\n"
             return
         try:
-            system_content = SYSTEM_PROMPT
+            system_content = SYSTEM_PROMPT + STREAM_OUTPUT_OVERRIDE
             if full_context:
-                system_content += (
-                    f"\n\nSTUDENT CONTEXT\n{full_context}\n"
-                    "Respond in clear markdown. Do not wrap in JSON for this stream."
-                )
+                system_content += f"\n\nSTUDENT CONTEXT\n{full_context}\n"
             messages = [{"role": "system", "content": system_content}]
             for msg in history[-HISTORY_LIMIT:]:
                 role = msg.get("role", "user")
@@ -1264,7 +1291,8 @@ def ask_stream():
                 if delta:
                     full_text += delta
                     yield f"data: {json.dumps({'type': 'token', 'content': delta})}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'answer': full_text, 'citations': citations})}\n\n"
+            parsed = coerce_stream_text(full_text)
+            yield f"data: {json.dumps({'type': 'done', 'answer': parsed['answer'], 'hints': parsed['hints'], 'tags': parsed['tags'], 'follow_ups': parsed['follow_ups'], 'xai': parsed['xai'], 'citations': citations})}\n\n"
         except Exception as e:
             msg = llm_error_from_exception(e, using_personal_key=using_personal, provider=provider)
             yield f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n"

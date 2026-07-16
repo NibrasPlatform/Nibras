@@ -1510,6 +1510,66 @@
     };
   };
 
+  const coerceStreamAnswer = (text) => {
+    const raw = String(text || '').trim();
+    if (!raw.startsWith('{')) {
+      return {
+        answer: raw,
+        hints: [],
+        tags: [],
+        followUps: [],
+        xai: null,
+        incomplete: false,
+      };
+    }
+    try {
+      const data = JSON.parse(raw);
+      if (data && typeof data.answer === 'string') {
+        return {
+          answer: data.answer,
+          hints: [data.hint1, data.hint2, data.hint3].filter(Boolean),
+          tags: Array.isArray(data.tags) ? data.tags : [],
+          followUps: Array.isArray(data.follow_ups) ? data.follow_ups : [],
+          xai: {
+            reasoning: data.reasoning || '',
+            concepts_used: Array.isArray(data.concepts_used)
+              ? data.concepts_used
+              : [],
+            might_be_unclear: Array.isArray(data.might_be_unclear)
+              ? data.might_be_unclear
+              : [],
+          },
+          incomplete: false,
+        };
+      }
+    } catch (_) {
+      return {
+        answer: '',
+        hints: [],
+        tags: [],
+        followUps: [],
+        xai: null,
+        incomplete: true,
+      };
+    }
+    return {
+      answer: raw,
+      hints: [],
+      tags: [],
+      followUps: [],
+      xai: null,
+      incomplete: false,
+    };
+  };
+
+  const streamDisplayText = (text) => {
+    const coerced = coerceStreamAnswer(text);
+    if (coerced.incomplete) return '';
+    const display = String(coerced.answer || '').trim();
+    if (!display || display.startsWith('{')) return '';
+    return display;
+  };
+
   const normalizePublishPayload = (data = {}) => {
     const title = String(data?.title || '').trim();
     const question = String(data?.question || '').trim();
@@ -1530,6 +1590,8 @@
 
   const chatbotService = {
     normalizeAskResponse,
+    coerceStreamAnswer,
+    streamDisplayText,
 
     async getConfig() {
       return apiFetch('/v1/community/chatbot/config', {
@@ -1592,6 +1654,10 @@
       let buffer = '';
       let fullAnswer = '';
       let citations = [];
+      let streamHints = [];
+      let streamTags = [];
+      let streamFollowUps = [];
+      let streamXai = null;
 
       const parseEvent = (line) => {
         if (!line.startsWith('data: ')) return null;
@@ -1614,13 +1680,26 @@
           if (evt.type === 'token' && evt.content) {
             fullAnswer += evt.content;
             if (typeof options.onToken === 'function') {
-              options.onToken(evt.content, fullAnswer);
+              options.onToken(evt.content, fullAnswer, streamDisplayText(fullAnswer));
             }
           } else if (evt.type === 'done') {
             fullAnswer = String(evt.answer || fullAnswer).trim();
             citations = Array.isArray(evt.citations) ? evt.citations : [];
+            streamHints = Array.isArray(evt.hints) ? evt.hints : [];
+            streamTags = Array.isArray(evt.tags) ? evt.tags : [];
+            streamFollowUps = Array.isArray(evt.follow_ups)
+              ? evt.follow_ups
+              : [];
+            streamXai = evt.xai ?? null;
             if (typeof options.onDone === 'function') {
-              options.onDone({ answer: fullAnswer, citations });
+              options.onDone({
+                answer: fullAnswer,
+                citations,
+                hints: streamHints,
+                tags: streamTags,
+                followUps: streamFollowUps,
+                xai: streamXai,
+              });
             }
           } else if (evt.type === 'error') {
             if (typeof options.onError === 'function') {
@@ -1631,11 +1710,13 @@
         }
       }
 
+      const coerced = coerceStreamAnswer(fullAnswer);
       return normalizeAskResponse({
-        answer: fullAnswer,
-        hints: [],
-        tags: [],
-        followUps: [],
+        answer: coerced.answer || fullAnswer,
+        hints: streamHints.length ? streamHints : coerced.hints,
+        tags: streamTags.length ? streamTags : coerced.tags,
+        followUps: streamFollowUps.length ? streamFollowUps : coerced.followUps,
+        xai: streamXai ?? coerced.xai,
         citations,
         refused: false,
       });

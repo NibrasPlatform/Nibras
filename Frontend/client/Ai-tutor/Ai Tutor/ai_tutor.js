@@ -682,19 +682,38 @@ window.NibrasReact.run(() => {
           let streamText = '';
           data = await svc.askStream(trimmed, {
             ...askOptions,
-            onToken: (_chunk, full) => {
+            onToken: (_chunk, full, displayText) => {
               streamText = full;
-              setTutorNotice('info', '');
-              renderFullAnswer(streamText);
+              if (displayText) {
+                setTutorNotice('info', '');
+                renderFullAnswer(displayText);
+              }
             },
           });
           if (!data?.finalAnswer && streamText) {
+            const coerced = svc.coerceStreamAnswer
+              ? svc.coerceStreamAnswer(streamText)
+              : { answer: streamText };
             data = svc.normalizeAskResponse
+<<<<<<< HEAD
               ? svc.normalizeAskResponse({ answer: streamText })
               : {
                   finalAnswer: streamText,
                   hints: [],
                   tags: [],
+=======
+              ? svc.normalizeAskResponse({
+                  answer: coerced.answer || streamText,
+                  hints: coerced.hints,
+                  tags: coerced.tags,
+                  followUps: coerced.followUps,
+                  xai: coerced.xai,
+                })
+              : {
+                  finalAnswer: coerced.answer || streamText,
+                  hints: coerced.hints || [],
+                  tags: coerced.tags || [],
+>>>>>>> 8ec8f04 (feat: add automated curriculum seeding scripts, sync logic, and update demo user identity for showcase presentation.)
                   refused: false,
                 };
           }

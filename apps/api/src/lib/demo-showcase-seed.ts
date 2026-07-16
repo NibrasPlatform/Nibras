@@ -5,9 +5,11 @@
 import {
   AssignmentSubmissionStatus,
   CommunityVoteTargetType,
+  CourseRole,
   PlannedCourseSourceType,
   Prisma,
   type PrismaClient,
+  ProjectStatus,
   ReviewStatus,
   SocialPlatform,
   SubmissionStatus,
@@ -17,6 +19,7 @@ import { getUserToday } from '@nibras/daily-problem';
 import { buildRecommendedPlan } from '../features/programs/planner-validation';
 import { NIBRAS_75_CURRICULUM } from '../features/competitions/practice/nibras75/curriculum';
 import { recomputeUserGamificationMetrics } from '../features/gamification/user-metrics';
+import { invalidateUserDashboardCache } from './cache';
 import type {
   AcademicTerm as StoreAcademicTerm,
   CatalogCourseRecord,
@@ -38,6 +41,28 @@ export const DEMO_SHOWCASE_POST_MARKER = `<!-- ${DEMO_SHOWCASE_MARKER} -->`;
 export const DEFAULT_DEMO_PASSWORD = DEFAULT_LOCAL_DEV_PASSWORD;
 
 const DEMO_TIMEZONE = 'America/Los_Angeles';
+const VETERAN_ACCOUNT_AGE_DAYS = 400;
+const DAILY_HISTORY_DAYS = 365;
+const VETERAN_STREAK = 94;
+const VETERAN_DAILY_TOTAL = 280;
+const VETERAN_NIBRAS75_SOLVES = 55;
+const VETERAN_CP_TOPICS = 8;
+const VETERAN_CP_PROBLEMS_PER_TOPIC = 5;
+
+const VETERAN_ONBOARDING_PROGRESS: Record<string, boolean> = {
+  'step-01': true,
+  'step-02': true,
+  'step-03': true,
+  'step-github-app': true,
+  'step-join': true,
+  'step-04': true,
+  'step-05': true,
+  'step-06': true,
+  'step-07': true,
+  'step-08': true,
+  'step-09': true,
+};
+
 const SHOWCASE_BADGE_CODES = [
   'github-connected',
   'github-app-ready',
@@ -59,9 +84,12 @@ export type DemoShowcaseResult = {
   reason?: string;
   profileUpdated: boolean;
   credentialPasswordSet: boolean;
+  githubLinked: boolean;
+  enrollments: number;
   plannedCourses: number;
   submissions: number;
   assignmentSubmissions: number;
+  videoProgress: number;
   dailyAssignments: number;
   nibras75Progress: number;
   cpRoadmapProgress: number;
@@ -83,6 +111,10 @@ function addDaysToDateString(dateStr: string, days: number): string {
 
 function daysAgoFromToday(today: string, days: number): string {
   return addDaysToDateString(today, -days);
+}
+
+function daysAgoDate(days: number): Date {
+  return new Date(Date.now() - days * 86_400_000);
 }
 
 async function resolveDemoUser(
@@ -111,12 +143,19 @@ async function seedDemoProfile(
   prisma: PrismaClient,
   userId: string,
 ): Promise<{ profileUpdated: boolean; credentialPasswordSet: boolean }> {
+  const accountCreatedAt = daysAgoDate(VETERAN_ACCOUNT_AGE_DAYS);
+
   await prisma.user.update({
     where: { id: userId },
     data: {
-      displayName: 'Alex Chen',
+      displayName: 'Hossam Ahmed',
+      bio: 'Intermediate track · AI focus · daily problem solver since 2024',
       yearLevel: 2,
       emailVerified: true,
+      githubLinked: true,
+      githubAppInstalled: true,
+      onboardingProgress: VETERAN_ONBOARDING_PROGRESS,
+      createdAt: accountCreatedAt,
     },
   });
 
@@ -130,9 +169,9 @@ async function seedDemoProfile(
     create: {
       userId,
       platform: SocialPlatform.linkedin,
-      value: 'https://linkedin.com/in/alexchen-demo',
+      value: 'https://linkedin.com/in/hossam-ahmed-demo',
     },
-    update: { value: 'https://linkedin.com/in/alexchen-demo' },
+    update: { value: 'https://linkedin.com/in/hossam-ahmed-demo' },
   });
 
   await prisma.userSocialLink.upsert({
@@ -146,6 +185,152 @@ async function seedDemoProfile(
   });
 
   return { profileUpdated: true, credentialPasswordSet };
+}
+
+async function seedDemoGithubAccount(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<boolean> {
+  await prisma.githubAccount.upsert({
+    where: { userId },
+    update: {
+      githubUserId: 'demo-user-id',
+      login: 'demo-user',
+      installationId: 'demo-installation',
+    },
+    create: {
+      userId,
+      githubUserId: 'demo-user-id',
+      login: 'demo-user',
+      installationId: 'demo-installation',
+    },
+  });
+
+  const cs161Project = await prisma.project.findUnique({
+    where: { slug: 'cs161/exam1' },
+    select: { id: true },
+  });
+  if (cs161Project) {
+    await prisma.userProjectRepo.upsert({
+      where: {
+        userId_projectId: { userId, projectId: cs161Project.id },
+      },
+      create: {
+        userId,
+        projectId: cs161Project.id,
+        owner: 'demo-user',
+        name: 'cs161-exam1',
+        defaultBranch: 'main',
+        cloneUrl: 'https://github.com/demo-user/cs161-exam1.git',
+      },
+      update: {
+        owner: 'demo-user',
+        name: 'cs161-exam1',
+        cloneUrl: 'https://github.com/demo-user/cs161-exam1.git',
+      },
+    });
+  }
+
+  return true;
+}
+
+async function seedVeteranEnrollments(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<number> {
+  const coursesWithProjects = await prisma.course.findMany({
+    where: {
+      isActive: true,
+      deletedAt: null,
+      OR: [
+        { termLabel: { startsWith: 'Year 1' } },
+        { termLabel: { startsWith: 'Year 2' } },
+        { isPublic: true },
+      ],
+      projects: { some: { status: ProjectStatus.published } },
+    },
+    select: { id: true, termLabel: true },
+    orderBy: { termLabel: 'asc' },
+  });
+
+  const year1EnrolledAt = daysAgoDate(VETERAN_ACCOUNT_AGE_DAYS);
+  const year2EnrolledAt = daysAgoDate(120);
+  const publicEnrolledAt = daysAgoDate(200);
+  let count = 0;
+
+  for (const course of coursesWithProjects) {
+    const term = course.termLabel || '';
+    const level = term.startsWith('Year 2')
+      ? 2
+      : term.startsWith('Year 1')
+        ? 1
+        : 2;
+    const enrolledAt = term.startsWith('Year 1')
+      ? year1EnrolledAt
+      : term.startsWith('Year 2')
+        ? year2EnrolledAt
+        : publicEnrolledAt;
+
+    await prisma.courseMembership.upsert({
+      where: { courseId_userId: { courseId: course.id, userId } },
+      create: {
+        courseId: course.id,
+        userId,
+        role: CourseRole.student,
+        level,
+        createdAt: enrolledAt,
+      },
+      update: { role: CourseRole.student, level },
+    });
+    await prisma.courseMembership.update({
+      where: { courseId_userId: { courseId: course.id, userId } },
+      data: { createdAt: enrolledAt, level },
+    });
+    count += 1;
+  }
+
+  return count;
+}
+
+async function seedMilestoneDueDates(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<number> {
+  const memberships = await prisma.courseMembership.findMany({
+    where: { userId, role: CourseRole.student },
+    select: { courseId: true },
+  });
+  const courseIds = memberships.map((entry) => entry.courseId);
+  if (courseIds.length === 0) return 0;
+
+  const projects = await prisma.project.findMany({
+    where: {
+      courseId: { in: courseIds },
+      status: ProjectStatus.published,
+    },
+    select: { id: true },
+  });
+  const projectIds = projects.map((project) => project.id);
+  if (projectIds.length === 0) return 0;
+
+  const milestones = await prisma.milestone.findMany({
+    where: { projectId: { in: projectIds } },
+    orderBy: [{ projectId: 'asc' }, { order: 'asc' }],
+    select: { id: true },
+  });
+
+  let count = 0;
+  for (const [index, milestone] of milestones.entries()) {
+    const daysAhead = 7 + (index % 24);
+    const dueAt = new Date(Date.now() + daysAhead * 86_400_000);
+    await prisma.milestone.update({
+      where: { id: milestone.id },
+      data: { dueAt },
+    });
+    count += 1;
+  }
+
+  return count;
 }
 
 function mapRequirementGroups(
@@ -320,121 +505,197 @@ async function seedPlanner(
   return extendedPlan.length;
 }
 
-async function seedDashboardSubmissions(
+async function seedVeteranSubmissions(
   prisma: PrismaClient,
   userId: string,
   instructorId: string | null,
 ): Promise<number> {
-  const project = await prisma.project.findUnique({
-    where: { slug: 'cs161/exam1' },
+  const yearCourses = await prisma.course.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        { termLabel: { startsWith: 'Year 1' } },
+        { termLabel: { startsWith: 'Year 2' } },
+      ],
+    },
+    select: { id: true },
+  });
+  const courseIds = yearCourses.map((course) => course.id);
+
+  const projects = await prisma.project.findMany({
+    where: {
+      status: ProjectStatus.published,
+      courseId: courseIds.length > 0 ? { in: courseIds } : undefined,
+    },
     include: {
       releases: { orderBy: { createdAt: 'desc' }, take: 1 },
       milestones: { orderBy: { order: 'asc' } },
     },
+    take: 8,
+    orderBy: { createdAt: 'asc' },
   });
-  if (!project?.releases[0]) return 0;
 
-  const release = project.releases[0];
-  const milestones = project.milestones;
-  const milestone1 = milestones[0]?.id ?? null;
-  const milestone2 = milestones[1]?.id ?? null;
-
-  const specs: Array<{
-    sha: string;
-    status: SubmissionStatus;
-    milestoneId: string | null;
-    summary: string;
-    daysAgo: number;
-    review?: { status: ReviewStatus; score: number };
-  }> = [
-    {
-      sha: 'demo-showcase-passed-recent',
-      status: SubmissionStatus.passed,
-      milestoneId: milestone1,
-      summary: 'All tests passing — design milestone complete.',
-      daysAgo: 3,
-      review: { status: ReviewStatus.graded, score: 92 },
-    },
-    {
-      sha: 'demo-showcase-needs-review',
-      status: SubmissionStatus.needs_review,
-      milestoneId: milestone2 ?? milestone1,
-      summary: 'Final implementation submitted for instructor review.',
-      daysAgo: 1,
-    },
-    {
-      sha: 'demo-showcase-passed-older',
-      status: SubmissionStatus.passed,
-      milestoneId: milestone1,
-      summary: 'Initial prototype passed automated checks.',
-      daysAgo: 14,
-      review: { status: ReviewStatus.approved, score: 88 },
-    },
-  ];
+  if (projects.length === 0) {
+    const fallback = await prisma.project.findUnique({
+      where: { slug: 'cs161/exam1' },
+      include: {
+        releases: { orderBy: { createdAt: 'desc' }, take: 1 },
+        milestones: { orderBy: { order: 'asc' } },
+      },
+    });
+    if (fallback) projects.push(fallback);
+  }
 
   let count = 0;
-  for (const spec of specs) {
-    const createdAt = new Date(Date.now() - spec.daysAgo * 86_400_000);
-    const submission = await prisma.submissionAttempt.upsert({
-      where: {
-        userId_projectId_commitSha: {
+  const repoSlug = (slug: string) => slug.replace(/\//g, '-');
+
+  for (const [projectIndex, project] of projects.entries()) {
+    const release = project.releases[0];
+    if (!release) continue;
+
+    const milestones = project.milestones;
+    const milestone1 = milestones[0]?.id ?? null;
+    const milestone2 = milestones[1]?.id ?? milestone1;
+    const repoName = repoSlug(project.slug);
+
+    const submissionSpecs: Array<{
+      sha: string;
+      status: SubmissionStatus;
+      milestoneId: string | null;
+      summary: string;
+      daysAgo: number;
+      review?: { status: ReviewStatus; score: number };
+    }> = [];
+
+    const baseDaysAgo =
+      VETERAN_ACCOUNT_AGE_DAYS - 20 - projectIndex * Math.floor(30);
+
+    for (let i = 0; i < 3; i += 1) {
+      const daysAgo = Math.max(3, baseDaysAgo - i * 12);
+      const isRecent = projectIndex === 0 && i === 0;
+      submissionSpecs.push({
+        sha: `demo-veteran-${repoName}-${i}`,
+        status: isRecent
+          ? SubmissionStatus.needs_review
+          : SubmissionStatus.passed,
+        milestoneId: i === 0 ? milestone1 : milestone2,
+        summary: isRecent
+          ? 'Latest milestone submitted for instructor review.'
+          : `Milestone ${i + 1} passed automated verification.`,
+        daysAgo: isRecent ? 1 : daysAgo,
+        review:
+          isRecent || !instructorId
+            ? undefined
+            : {
+                status:
+                  i === 0 ? ReviewStatus.graded : ReviewStatus.approved,
+                score: 85 + ((projectIndex + i) % 14),
+              },
+      });
+    }
+
+    for (const spec of submissionSpecs) {
+      const createdAt = daysAgoDate(spec.daysAgo);
+      const submission = await prisma.submissionAttempt.upsert({
+        where: {
+          userId_projectId_commitSha: {
+            userId,
+            projectId: project.id,
+            commitSha: spec.sha,
+          },
+        },
+        create: {
           userId,
           projectId: project.id,
+          projectReleaseId: release.id,
+          milestoneId: spec.milestoneId,
           commitSha: spec.sha,
+          repoUrl: `https://github.com/demo-user/${repoName}`,
+          branch: 'main',
+          status: spec.status,
+          summary: spec.summary,
+          submittedAt: createdAt,
+          createdAt,
+          updatedAt: createdAt,
         },
-      },
+        update: {
+          status: spec.status,
+          summary: spec.summary,
+          milestoneId: spec.milestoneId,
+          submittedAt: createdAt,
+        },
+      });
+      count += 1;
+
+      if (spec.review && instructorId) {
+        const reviewedAt = new Date(createdAt.getTime() + 86_400_000);
+        const existingReview = await prisma.review.findFirst({
+          where: { submissionAttemptId: submission.id },
+          select: { id: true },
+        });
+        if (existingReview) {
+          await prisma.review.update({
+            where: { id: existingReview.id },
+            data: {
+              status: spec.review.status,
+              score: spec.review.score,
+              feedback: 'Strong work — clear structure and thorough testing.',
+              reviewedAt,
+            },
+          });
+        } else {
+          await prisma.review.create({
+            data: {
+              submissionAttemptId: submission.id,
+              reviewerUserId: instructorId,
+              status: spec.review.status,
+              score: spec.review.score,
+              feedback: 'Strong work — clear structure and thorough testing.',
+              reviewedAt,
+            },
+          });
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
+async function seedVideoProgress(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<number> {
+  const year1Courses = await prisma.course.findMany({
+    where: { isActive: true, termLabel: { startsWith: 'Year 1' } },
+    select: { id: true },
+  });
+  if (year1Courses.length === 0) return 0;
+
+  const videos = await prisma.courseVideo.findMany({
+    where: {
+      section: { courseId: { in: year1Courses.map((course) => course.id) } },
+    },
+    select: { id: true },
+  });
+
+  let count = 0;
+  for (const [index, video] of videos.entries()) {
+    const watchedProgress = 0.82 + (index % 5) * 0.035;
+    await prisma.videoProgress.upsert({
+      where: { userId_videoId: { userId, videoId: video.id } },
       create: {
         userId,
-        projectId: project.id,
-        projectReleaseId: release.id,
-        milestoneId: spec.milestoneId,
-        commitSha: spec.sha,
-        repoUrl: 'https://github.com/demo-user/cs161-exam1',
-        branch: 'main',
-        status: spec.status,
-        summary: spec.summary,
-        submittedAt: createdAt,
-        createdAt,
-        updatedAt: createdAt,
+        videoId: video.id,
+        watched: watchedProgress >= 0.9,
+        watchedProgress: Math.min(1, watchedProgress),
       },
       update: {
-        status: spec.status,
-        summary: spec.summary,
-        milestoneId: spec.milestoneId,
-        submittedAt: createdAt,
+        watched: watchedProgress >= 0.9,
+        watchedProgress: Math.min(1, watchedProgress),
       },
     });
     count += 1;
-
-    if (spec.review && instructorId) {
-      const reviewedAt = new Date(createdAt.getTime() + 86_400_000);
-      const existingReview = await prisma.review.findFirst({
-        where: { submissionAttemptId: submission.id },
-        select: { id: true },
-      });
-      if (existingReview) {
-        await prisma.review.update({
-          where: { id: existingReview.id },
-          data: {
-            status: spec.review.status,
-            score: spec.review.score,
-            feedback: 'Strong work — clear structure and thorough testing.',
-            reviewedAt,
-          },
-        });
-      } else {
-        await prisma.review.create({
-          data: {
-            submissionAttemptId: submission.id,
-            reviewerUserId: instructorId,
-            status: spec.review.status,
-            score: spec.review.score,
-            feedback: 'Strong work — clear structure and thorough testing.',
-            reviewedAt,
-          },
-        });
-      }
-    }
   }
 
   return count;
@@ -444,59 +705,55 @@ async function seedAssignmentSubmissions(
   prisma: PrismaClient,
   userId: string,
 ): Promise<number> {
-  const assignment = await prisma.courseAssignment.findFirst({
+  const assignments = await prisma.courseAssignment.findMany({
     where: { published: true },
     orderBy: { createdAt: 'asc' },
+    take: 6,
     select: { id: true, title: true },
   });
-  if (!assignment) return 0;
+  if (assignments.length === 0) return 0;
 
-  await prisma.assignmentSubmission.upsert({
-    where: { assignmentId_userId: { assignmentId: assignment.id, userId } },
-    create: {
-      assignmentId: assignment.id,
-      userId,
-      content:
-        'Completed all sections. Key insight: amortized analysis applies to dynamic arrays.',
-      status: AssignmentSubmissionStatus.graded,
-      score: 95,
-      feedback: 'Excellent understanding of core concepts.',
-      submittedAt: new Date(Date.now() - 5 * 86_400_000),
-    },
-    update: {
-      status: AssignmentSubmissionStatus.graded,
-      score: 95,
-      feedback: 'Excellent understanding of core concepts.',
-      submittedAt: new Date(Date.now() - 5 * 86_400_000),
-    },
-  });
+  const submissionDaysAgo = [320, 260, 180, 90, 14, 2];
+  let count = 0;
 
-  const secondAssignment = await prisma.courseAssignment.findFirst({
-    where: { published: true, id: { not: assignment.id } },
-    orderBy: { createdAt: 'asc' },
-    select: { id: true },
-  });
-  if (secondAssignment) {
+  for (const [index, assignment] of assignments.entries()) {
+    const daysAgo = submissionDaysAgo[index] ?? 30 + index * 10;
+    const submittedAt = daysAgoDate(daysAgo);
+    const isLatest = index === assignments.length - 1;
+    const isGraded = index < assignments.length - 1;
+
     await prisma.assignmentSubmission.upsert({
-      where: {
-        assignmentId_userId: { assignmentId: secondAssignment.id, userId },
-      },
+      where: { assignmentId_userId: { assignmentId: assignment.id, userId } },
       create: {
-        assignmentId: secondAssignment.id,
+        assignmentId: assignment.id,
         userId,
-        content: 'Submitted quiz responses.',
-        status: AssignmentSubmissionStatus.submitted,
-        submittedAt: new Date(Date.now() - 1 * 86_400_000),
+        content: isLatest
+          ? 'Submitted quiz responses — awaiting grading.'
+          : `Completed ${assignment.title}. Applied concepts from lectures and practice problems.`,
+        status: isGraded
+          ? AssignmentSubmissionStatus.graded
+          : AssignmentSubmissionStatus.submitted,
+        score: isGraded ? 88 + (index % 10) : null,
+        feedback: isGraded
+          ? 'Solid work with clear reasoning throughout.'
+          : null,
+        submittedAt,
       },
       update: {
-        status: AssignmentSubmissionStatus.submitted,
-        submittedAt: new Date(Date.now() - 1 * 86_400_000),
+        status: isGraded
+          ? AssignmentSubmissionStatus.graded
+          : AssignmentSubmissionStatus.submitted,
+        score: isGraded ? 88 + (index % 10) : null,
+        feedback: isGraded
+          ? 'Solid work with clear reasoning throughout.'
+          : null,
+        submittedAt,
       },
     });
-    return 2;
+    count += 1;
   }
 
-  return 1;
+  return count;
 }
 
 async function ensureLeetcodeProblems(
@@ -538,8 +795,8 @@ async function seedDailyProblem(
   problemIds: string[],
 ): Promise<number> {
   const today = getUserToday(DEMO_TIMEZONE);
-  const streakLength = 42;
-  const totalCompleted = 58;
+  const streakLength = VETERAN_STREAK;
+  const totalCompleted = VETERAN_DAILY_TOTAL;
 
   const config = await prisma.dailyProblemConfig.upsert({
     where: { userId },
@@ -550,9 +807,9 @@ async function seedDailyProblem(
       longestStreak: streakLength,
       totalCompleted,
       lastCompletedDate: today,
-      streakFreezes: 1,
+      streakFreezes: 2,
       difficultyPref: [800, 1500],
-      tagPrefs: ['array', 'dynamic-programming'],
+      tagPrefs: ['array', 'dynamic-programming', 'graph'],
     },
     update: {
       timezone: DEMO_TIMEZONE,
@@ -560,7 +817,7 @@ async function seedDailyProblem(
       longestStreak: streakLength,
       totalCompleted,
       lastCompletedDate: today,
-      streakFreezes: 1,
+      streakFreezes: 2,
     },
   });
 
@@ -571,16 +828,16 @@ async function seedDailyProblem(
     problemIds.length > 0 ? problemIds : [problemIds[0]].filter(Boolean);
   if (problemPool.length === 0) return 0;
 
-  for (let offset = 89; offset >= 0; offset -= 1) {
+  for (let offset = DAILY_HISTORY_DAYS; offset >= 0; offset -= 1) {
     const assignedDate = daysAgoFromToday(today, offset);
     const daysFromToday = offset;
-    const problemId = problemPool[(89 - offset) % problemPool.length]!;
+    const problemId = problemPool[(DAILY_HISTORY_DAYS - offset) % problemPool.length]!;
     const inStreakWindow = daysFromToday < streakLength;
     const solved = inStreakWindow && daysFromToday > 0;
     const skipped =
       !inStreakWindow &&
       daysFromToday > streakLength &&
-      daysFromToday % 7 === 0;
+      daysFromToday % 11 === 0;
 
     assignments.push({
       userId,
@@ -617,7 +874,7 @@ async function seedNibras75Progress(
     },
   });
 
-  const solveCount = 38;
+  const solveCount = VETERAN_NIBRAS75_SOLVES;
   let count = 0;
   for (
     let i = 0;
@@ -627,8 +884,8 @@ async function seedNibras75Progress(
     const entry = NIBRAS_75_CURRICULUM[i]!;
     const problemId = problemIdBySlug.get(entry.slug);
     if (!problemId) continue;
-    const daysAgo = 60 - Math.floor((i / solveCount) * 59);
-    const solvedAt = new Date(Date.now() - daysAgo * 86_400_000);
+    const daysAgo = DAILY_HISTORY_DAYS - Math.floor((i / solveCount) * (DAILY_HISTORY_DAYS - 7));
+    const solvedAt = daysAgoDate(daysAgo);
     await prisma.userProblemProgress.upsert({
       where: { userId_problemId: { userId, problemId } },
       create: { userId, problemId, solved: true, solvedAt },
@@ -644,11 +901,11 @@ async function seedCpRoadmapProgress(
   userId: string,
 ): Promise<number> {
   const topics = await prisma.cpRoadmapTopic.findMany({
-    take: 3,
+    take: VETERAN_CP_TOPICS,
     orderBy: { sortOrder: 'asc' },
     include: {
       topicProblems: {
-        take: 4,
+        take: VETERAN_CP_PROBLEMS_PER_TOPIC,
         orderBy: { sortOrder: 'asc' },
         include: { problem: { select: { slug: true } } },
       },
@@ -659,8 +916,8 @@ async function seedCpRoadmapProgress(
   for (const topic of topics) {
     for (const link of topic.topicProblems) {
       const slug = link.problem.slug;
-      const daysAgo = 20 - count;
-      const solvedAt = new Date(Date.now() - daysAgo * 86_400_000);
+      const daysAgo = DAILY_HISTORY_DAYS - Math.floor((count / (VETERAN_CP_TOPICS * VETERAN_CP_PROBLEMS_PER_TOPIC)) * (DAILY_HISTORY_DAYS - 14));
+      const solvedAt = daysAgoDate(Math.max(7, daysAgo));
       await prisma.cpRoadmapProblemProgress.upsert({
         where: { userId_roadmapProblemId: { userId, roadmapProblemId: slug } },
         create: {
@@ -688,14 +945,15 @@ async function seedGamification(
   });
 
   let badgesAwarded = 0;
-  const now = Date.now();
   for (const [index, badge] of badges.entries()) {
     await prisma.userBadge.upsert({
       where: { userId_badgeId: { userId, badgeId: badge.id } },
       create: {
         userId,
         badgeId: badge.id,
-        earnedAt: new Date(now - (badges.length - index) * 86_400_000 * 3),
+        earnedAt: daysAgoDate(
+          VETERAN_ACCOUNT_AGE_DAYS - index * Math.floor(VETERAN_ACCOUNT_AGE_DAYS / Math.max(badges.length, 1)),
+        ),
       },
       update: {},
     });
@@ -705,44 +963,64 @@ async function seedGamification(
   const reputationSpecs = [
     {
       source: `${DEMO_SHOWCASE_MARKER}:streak`,
-      reason: 'Maintained a 42-day daily problem streak',
+      reason: `Maintained a ${VETERAN_STREAK}-day daily problem streak`,
       delta: 50,
       category: 'problem' as const,
+      daysAgo: 14,
     },
     {
       source: `${DEMO_SHOWCASE_MARKER}:submission`,
-      reason: 'Passed CS161 Exam 1 milestone',
+      reason: 'Passed multiple project milestones across Year 1 and Year 2',
       delta: 75,
       category: 'course' as const,
+      daysAgo: 90,
     },
     {
       source: `${DEMO_SHOWCASE_MARKER}:community`,
-      reason: 'Helpful reply in course discussion',
+      reason: 'Helpful replies in course discussions over the past year',
       delta: 25,
       category: 'community' as const,
+      daysAgo: 160,
     },
     {
       source: `${DEMO_SHOWCASE_MARKER}:badge`,
       reason: 'Earned GitHub Connected badge',
       delta: 25,
       category: 'badge' as const,
+      daysAgo: 380,
     },
     {
       source: `${DEMO_SHOWCASE_MARKER}:nibras75`,
-      reason: 'Solved 38 Nibras 75 problems',
+      reason: `Solved ${VETERAN_NIBRAS75_SOLVES} Nibras 75 problems`,
       delta: 100,
       category: 'problem' as const,
+      daysAgo: 45,
     },
     {
       source: `${DEMO_SHOWCASE_MARKER}:cp-roadmap`,
-      reason: 'Progress on CP Roadmap curriculum',
+      reason: 'Steady progress on CP Roadmap curriculum',
       delta: 50,
       category: 'problem' as const,
+      daysAgo: 120,
+    },
+    {
+      source: `${DEMO_SHOWCASE_MARKER}:year1-complete`,
+      reason: 'Completed Year 1 foundation courses',
+      delta: 80,
+      category: 'course' as const,
+      daysAgo: 200,
+    },
+    {
+      source: `${DEMO_SHOWCASE_MARKER}:daily-milestone`,
+      reason: `Reached ${VETERAN_DAILY_TOTAL} daily problems solved`,
+      delta: 60,
+      category: 'problem' as const,
+      daysAgo: 30,
     },
   ];
 
   let reputationEvents = 0;
-  for (const [index, spec] of reputationSpecs.entries()) {
+  for (const spec of reputationSpecs) {
     await prisma.reputationEvent.upsert({
       where: { userId_source: { userId, source: spec.source } },
       create: {
@@ -751,14 +1029,13 @@ async function seedGamification(
         reason: spec.reason,
         delta: spec.delta,
         category: spec.category,
-        createdAt: new Date(
-          now - (reputationSpecs.length - index) * 86_400_000 * 2,
-        ),
+        createdAt: daysAgoDate(spec.daysAgo),
       },
       update: {
         reason: spec.reason,
         delta: spec.delta,
         category: spec.category,
+        createdAt: daysAgoDate(spec.daysAgo),
       },
     });
     reputationEvents += 1;
@@ -781,37 +1058,45 @@ async function seedCommunityEngagement(
   const threads = await prisma.communityThread.findMany({
     where: { closed: false },
     orderBy: { lastActivityAt: 'desc' },
-    take: 3,
+    take: 6,
     select: { id: true, title: true, postsCount: true },
   });
+
+  const postBodies = [
+    'Great question! I found the lecture notes on amortized analysis really helpful for this.',
+    'We formed a study group for this — happy to share our notes in the course hub.',
+    'Confirming the approach from office hours: start with the base case, then build up inductively.',
+    'After a year on Nibras, the daily problem streak really helped me stay sharp between courses.',
+    'For anyone starting the AI track: finish the Year 1 graph unit before jumping into heuristics.',
+    'Linked my GitHub early — made project submissions much smoother for every milestone.',
+  ];
+  const postDaysAgo = [350, 280, 210, 140, 70, 21];
 
   let communityPosts = 0;
   for (const [index, thread] of threads.entries()) {
     const body = [
       DEMO_SHOWCASE_POST_MARKER,
       '',
-      index === 0
-        ? 'Great question! I found the lecture notes on amortized analysis really helpful for this.'
-        : index === 1
-          ? 'We formed a study group for this — happy to share our notes in the course hub.'
-          : 'Confirming the approach from office hours: start with the base case, then build up inductively.',
+      postBodies[index] ?? postBodies[postBodies.length - 1]!,
     ].join('\n');
+    const createdAt = daysAgoDate(postDaysAgo[index] ?? 30 + index * 14);
 
     await prisma.communityPost.create({
       data: {
         threadId: thread.id,
         authorId: userId,
         body,
+        createdAt,
+        updatedAt: createdAt,
       },
     });
 
-    const now = new Date();
     await prisma.communityThread.update({
       where: { id: thread.id },
       data: {
         postsCount: { increment: 1 },
-        lastActivityAt: now,
-        updatedAt: now,
+        lastActivityAt: createdAt,
+        updatedAt: createdAt,
       },
     });
     communityPosts += 1;
@@ -899,9 +1184,12 @@ export async function seedDemoShowcaseData(
       reason: 'demo user not found',
       profileUpdated: false,
       credentialPasswordSet: false,
+      githubLinked: false,
+      enrollments: 0,
       plannedCourses: 0,
       submissions: 0,
       assignmentSubmissions: 0,
+      videoProgress: 0,
       dailyAssignments: 0,
       nibras75Progress: 0,
       cpRoadmapProgress: 0,
@@ -928,15 +1216,29 @@ export async function seedDemoShowcaseData(
     );
   }
 
+  const githubLinked = await seedDemoGithubAccount(prisma, demoUser.id);
+  if (githubLinked) {
+    log('  → GitHub account linked (demo-user)');
+  }
+
+  const enrollments = await seedVeteranEnrollments(prisma, demoUser.id);
+  log(`  → ${enrollments} course enrollment(s)`);
+
   const plannedCourses = await seedPlanner(prisma, demoUser.id);
   log(`  → ${plannedCourses} planned course(s)`);
 
-  const submissions = await seedDashboardSubmissions(
+  const submissions = await seedVeteranSubmissions(
     prisma,
     demoUser.id,
     instructor?.id ?? null,
   );
   log(`  → ${submissions} submission(s)`);
+
+  const milestoneDueDates = await seedMilestoneDueDates(prisma, demoUser.id);
+  log(`  → ${milestoneDueDates} milestone due date(s)`);
+
+  const videoProgress = await seedVideoProgress(prisma, demoUser.id);
+  log(`  → ${videoProgress} video progress row(s)`);
 
   const assignmentSubmissions = await seedAssignmentSubmissions(
     prisma,
@@ -976,15 +1278,23 @@ export async function seedDemoShowcaseData(
   );
   log(`  → ${communityPosts} community post(s), ${communityVotes} vote(s)`);
 
+  // Re-apply profile last so concurrent API store seeds cannot leave a stale display name.
+  await seedDemoProfile(prisma, demoUser.id);
+
+  await invalidateUserDashboardCache(demoUser.id).catch(() => {});
+
   log('✅ Demo showcase seed complete');
 
   return {
     skipped: false,
     profileUpdated,
     credentialPasswordSet,
+    githubLinked,
+    enrollments,
     plannedCourses,
     submissions,
     assignmentSubmissions,
+    videoProgress,
     dailyAssignments,
     nibras75Progress,
     cpRoadmapProgress,

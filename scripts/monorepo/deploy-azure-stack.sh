@@ -6,6 +6,7 @@
 #   bash scripts/monorepo/deploy-azure-stack.sh
 #   DEPLOY_WORKER=1 DEPLOY_BACKEND=1 bash scripts/monorepo/deploy-azure-stack.sh
 #   WEB_TAG=abc API_TAG=abc WORKER_TAG=abc BACKEND_TAG=abc bash scripts/monorepo/deploy-azure-stack.sh
+#   SEED_COURSES=1 bash scripts/monorepo/deploy-azure-stack.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -23,6 +24,7 @@ DEPLOY_BACKEND="${DEPLOY_BACKEND:-1}"
 DEPLOY_MONGO="${DEPLOY_MONGO:-1}"
 DEPLOY_REDIS="${DEPLOY_REDIS:-1}"
 BUILD_IMAGES="${BUILD_IMAGES:-0}"
+SEED_COURSES="${SEED_COURSES:-0}"
 
 LOGIN_SERVER="${ACR_NAME}.azurecr.io"
 ACR_USER="${ACR_NAME}"
@@ -99,6 +101,9 @@ create_or_update_api() {
     "HOST=0.0.0.0"
     "PORT=4848"
     "COMPETITIONS_SYNC_ENABLED=false"
+    "NIBRAS_RUNTIME_CURRICULUM_SEED=true"
+    "NIBRAS_AUTO_ENROLL_PUBLIC=true"
+    "NIBRAS_DEMO_SHOWCASE_SEED=true"
     "DATABASE_URL=secretref:database-url"
     "DIRECT_DATABASE_URL=secretref:direct-database-url"
     "AUTH_SECRET=secretref:auth-secret"
@@ -342,4 +347,9 @@ if az containerapp show -n nibras-api -g "$RG" >/dev/null 2>&1; then
   az containerapp update -n nibras-api -g "$RG" \
     --set-env-vars "NIBRAS_WEB_CORS_ORIGINS=https://${WEB_FQDN}" \
     -o none
+fi
+
+if [[ "$SEED_COURSES" == "1" ]]; then
+  echo "Seeding course curriculum into Postgres ..."
+  bash "$ROOT/scripts/monorepo/seed-azure-courses.sh"
 fi

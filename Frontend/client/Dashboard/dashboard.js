@@ -153,9 +153,13 @@ function getRoleLabel(role) {
   return 'Student';
 }
 
+function getDisplayName(user) {
+  return user.displayName || user.name || 'Student';
+}
+
 function updateUserUI(user) {
-  var initials = getInitials(user.name);
-  var name = user.name || 'Student';
+  var name = getDisplayName(user);
+  var initials = getInitials(name);
   var role = getRoleLabel(user.role);
   var firstName = name.split(/\s+/)[0];
 
@@ -194,7 +198,10 @@ async function refreshUserProfile() {
           (meData.data && meData.data.user) ||
           meData.data ||
           meData);
-      if (freshUser && (freshUser.name || freshUser.email)) {
+      if (freshUser && (freshUser.name || freshUser.displayName || freshUser.email)) {
+        if (!freshUser.name && freshUser.displayName) {
+          freshUser.name = freshUser.displayName;
+        }
         localStorage.setItem('user', JSON.stringify(freshUser));
         updateUserUI(freshUser);
         user = freshUser;
@@ -210,25 +217,54 @@ async function resolveUserName() {
   try {
     user = JSON.parse(localStorage.getItem('user') || '{}');
   } catch (_) {}
-  if (user.name) return user.name.split(/\s+/)[0];
+  var displayName = getDisplayName(user);
+  if (displayName && displayName !== 'Student') return displayName.split(/\s+/)[0];
 
   try {
     var cachedUser = JSON.parse(localStorage.getItem('nibras_user') || 'null');
-    if (cachedUser && cachedUser.login) return cachedUser.login;
+    if (cachedUser?.user?.displayName) {
+      return cachedUser.user.displayName.split(/\s+/)[0];
+    }
+    if (cachedUser?.user?.name) {
+      return cachedUser.user.name.split(/\s+/)[0];
+    }
   } catch (_) {}
 
   try {
     var requestJson = createTrackingRequestJson();
     var sessionData = await requestJson('/v1/web/session', { method: 'GET' });
-    if (sessionData && sessionData.login) {
+    if (sessionData?.user?.displayName || sessionData?.user?.name) {
       localStorage.setItem('nibras_user', JSON.stringify(sessionData));
-      return sessionData.login;
+      var sessionName =
+        sessionData.user.displayName || sessionData.user.name || '';
+      if (sessionName) return sessionName.split(/\s+/)[0];
     }
   } catch (err) {
     console.warn('[DASHBOARD.JS] Could not fetch tracking session:', err.message);
   }
 
   return 'Student';
+}
+
+function normalizeCourseId(course) {
+  return course?.id || course?.courseId || '';
+}
+
+function isCourseIdEnrolled(courses, courseId) {
+  if (!courseId) return true;
+  return (courses || []).some(function (course) {
+    return normalizeCourseId(course) === courseId;
+  });
+}
+
+function clearStaleSelectedCourseId(courses) {
+  if (!selectedCourseId) return false;
+  if (isCourseIdEnrolled(courses, selectedCourseId)) return false;
+  selectedCourseId = '';
+  localStorage.removeItem('selectedCourseId');
+  var selector = document.getElementById('course-switcher');
+  if (selector) selector.value = '';
+  return true;
 }
 
 function buildHomeDashboardPath() {
@@ -326,7 +362,7 @@ function filterStudentByCourse(student, courseId) {
     attentionItems: attentionItems,
     upcomingDeadlines: upcomingDeadlines,
     overallStats: {
-      coursesEnrolled: courses.length || 1,
+      coursesEnrolled: courses.length,
       overallCompletionPercent: completion,
       milestonesApproved: approved,
       milestonesTotal: totalMilestones,
@@ -574,10 +610,19 @@ function populateCourseSwitcher(courses, activeCourseId) {
     selector.appendChild(option);
   });
 
-  if (activeCourseId) {
+  if (activeCourseId && isCourseIdEnrolled(courses, activeCourseId)) {
     selector.value = activeCourseId;
-  } else if (selectedCourseId) {
+  } else if (
+    selectedCourseId &&
+    isCourseIdEnrolled(courses, selectedCourseId)
+  ) {
     selector.value = selectedCourseId;
+  } else {
+    selector.value = '';
+    if (selectedCourseId) {
+      selectedCourseId = '';
+      localStorage.removeItem('selectedCourseId');
+    }
   }
 }
 
@@ -1105,6 +1150,12 @@ async function loadDashboardData() {
 
   try {
     var homePayload = await fetchStudentHomeDashboard(requestJson);
+    if (
+      homePayload?.student?.courses &&
+      clearStaleSelectedCourseId(homePayload.student.courses)
+    ) {
+      courseId = '';
+    }
     var viewModel = mapHomeDashboardToViewModel(
       homePayload,
       courseId,

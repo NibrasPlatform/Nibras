@@ -92,6 +92,8 @@ async function syncCurriculumOnStartup(): Promise<void> {
   const { seedYear2Curriculum } = await import('./lib/year2-seed');
   const { seedYear3Curriculum } = await import('./lib/year3-seed');
   const { seedYear4Curriculum } = await import('./lib/year4-seed');
+  const { syncProgramCatalogLinks } =
+    await import('./features/programs/sync-catalog-links');
   const { getSharedPrisma } = await import('./lib/prisma');
   try {
     const prisma = getSharedPrisma();
@@ -99,10 +101,12 @@ async function syncCurriculumOnStartup(): Promise<void> {
     await seedYear2Curriculum(prisma);
     await seedYear3Curriculum(prisma);
     await seedYear4Curriculum(prisma);
+    const linkResult = await syncProgramCatalogLinks(prisma);
     console.log(
       JSON.stringify({
         level: 'info',
         msg: 'Years 1–4 curricula synced on startup',
+        catalogLinks: linkResult?.linkedTrackingCourses ?? 0,
       }),
     );
   } catch (err) {
@@ -346,6 +350,11 @@ async function main(): Promise<void> {
   const port = Number(process.env.PORT || '4848');
   const host = process.env.HOST || '0.0.0.0';
   const store = createDefaultStore();
+
+  if (process.env.DATABASE_URL) {
+    await syncCurriculumOnStartup();
+  }
+
   await seedStoreOnStartup(store);
   const app = buildApp(store);
   await app.listen({ port, host });

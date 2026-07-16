@@ -86,6 +86,7 @@ import {
   buildProgramSheet,
   buildStudentProgramPlan,
 } from './features/programs/domain';
+import { syncProgramCatalogLinks } from './features/programs/sync-catalog-links';
 import {
   buildRecommendedPlan,
   buildStudentPrerequisiteGraph,
@@ -99,9 +100,7 @@ import {
   submitStudentProgramForAdvisor,
 } from './features/programs/planner-validation';
 import {
-  assignTrackingCourseId,
   CURRICULUM_PLANNER_LINKS,
-  DEFAULT_PREREQUISITE_EDGES,
 } from './lib/curriculum-planner-links';
 import { normalizeSocialLinks } from './features/users/social-links';
 import type { SocialPlatform } from '@nibras/contracts';
@@ -1431,7 +1430,7 @@ export class PrismaStore implements AppStore {
       where: { email: 'demo@nibras.dev' },
       update: {
         username: 'demo',
-        displayName: 'Alex Chen',
+        displayName: 'Hossam Ahmed',
         yearLevel: 2,
         emailVerified: true,
         githubLinked: true,
@@ -1441,7 +1440,7 @@ export class PrismaStore implements AppStore {
       create: {
         username: 'demo',
         email: 'demo@nibras.dev',
-        displayName: 'Alex Chen',
+        displayName: 'Hossam Ahmed',
         yearLevel: 2,
         emailVerified: true,
         githubLinked: true,
@@ -1787,110 +1786,12 @@ export class PrismaStore implements AppStore {
     });
 
     // Legacy catalog rows (e.g. CS 101) may still hold trackingCourseId; clear before reassignment.
-    await this.prisma.catalogCourse.updateMany({
-      where: { programId: seededProgram.id },
-      data: { trackingCourseId: null },
-    });
-
-    const catalogByKey = new Map<string, string>();
-    const usedTrackingIds = new Set<string>();
-    for (const courseSeed of programSeed.catalogCourses) {
-      const link = CURRICULUM_PLANNER_LINKS.find(
-        (entry) => entry.plannerCode === courseSeed.key,
-      );
-      const trackingCourse = link?.trackingSlug
-        ? await this.prisma.course.findUnique({
-            where: { slug: link.trackingSlug },
-          })
-        : null;
-      const trackingCourseId = assignTrackingCourseId(
-        trackingCourse?.id,
-        usedTrackingIds,
-      );
-      const course = await this.prisma.catalogCourse.upsert({
-        where: {
-          programId_subjectCode_catalogNumber: {
-            programId: seededProgram.id,
-            subjectCode: courseSeed.subjectCode,
-            catalogNumber: courseSeed.catalogNumber,
-          },
-        },
-        update: {
-          title: courseSeed.title,
-          defaultUnits: courseSeed.defaultUnits,
-          department: courseSeed.department,
-          plannerCode: courseSeed.key,
-          trackingCourseId,
-        },
-        create: {
-          programId: seededProgram.id,
-          subjectCode: courseSeed.subjectCode,
-          catalogNumber: courseSeed.catalogNumber,
-          title: courseSeed.title,
-          defaultUnits: courseSeed.defaultUnits,
-          department: courseSeed.department,
-          plannerCode: courseSeed.key,
-          trackingCourseId,
-        },
-      });
-      catalogByKey.set(courseSeed.key, course.id);
-    }
-
-    for (const link of CURRICULUM_PLANNER_LINKS) {
-      if (catalogByKey.has(link.plannerCode)) continue;
-      const trackingCourse = link.trackingSlug
-        ? await this.prisma.course.findUnique({
-            where: { slug: link.trackingSlug },
-          })
-        : null;
-      const trackingCourseId = assignTrackingCourseId(
-        trackingCourse?.id,
-        usedTrackingIds,
-      );
-      const course = await this.prisma.catalogCourse.upsert({
-        where: {
-          programId_subjectCode_catalogNumber: {
-            programId: seededProgram.id,
-            subjectCode: link.subjectCode,
-            catalogNumber: link.catalogNumber,
-          },
-        },
-        update: {
-          title: link.title,
-          defaultUnits: link.defaultUnits,
-          department: link.department,
-          plannerCode: link.plannerCode,
-          trackingCourseId,
-        },
-        create: {
-          programId: seededProgram.id,
-          subjectCode: link.subjectCode,
-          catalogNumber: link.catalogNumber,
-          title: link.title,
-          defaultUnits: link.defaultUnits,
-          department: link.department,
-          plannerCode: link.plannerCode,
-          trackingCourseId,
-        },
-      });
-      catalogByKey.set(link.plannerCode, course.id);
-    }
-
-    for (const [prereqKey, courseKey] of DEFAULT_PREREQUISITE_EDGES) {
-      const catalogCourseId = catalogByKey.get(courseKey);
-      const prerequisiteCourseId = catalogByKey.get(prereqKey);
-      if (!catalogCourseId || !prerequisiteCourseId) continue;
-      await this.prisma.catalogCoursePrerequisite.upsert({
-        where: {
-          catalogCourseId_prerequisiteCourseId: {
-            catalogCourseId,
-            prerequisiteCourseId,
-          },
-        },
-        update: {},
-        create: { catalogCourseId, prerequisiteCourseId },
-      });
-    }
+    const catalogLinkResult = await syncProgramCatalogLinks(
+      this.prisma,
+      seededProgram.id,
+    );
+    const catalogByKey =
+      catalogLinkResult?.catalogByKey ?? new Map<string, string>();
 
     const trackIdBySlug = new Map<string, string>();
     for (const trackSeed of programSeed.tracks) {

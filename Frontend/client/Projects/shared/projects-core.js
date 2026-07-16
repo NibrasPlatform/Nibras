@@ -660,10 +660,10 @@ function createCliQuickstartCard(project) {
 function updateHeaderStats() {
   const counters = projectsPageState.ui.statusCounters;
 
-  const approved = document.querySelector('[data-counter="approved"]');
+  const approvedEl = document.querySelector('[data-counter="approved"]');
   const inReview = document.querySelector('[data-counter="in_review"]');
   const complete = document.querySelector('[data-counter="complete"]');
-  if (approved) approved.textContent = `Approved: ${counters.approved}`;
+  if (approvedEl) approvedEl.textContent = `Approved: ${counters.approved}`;
   if (inReview) inReview.textContent = `In Review: ${counters.in_review}`;
   if (complete) complete.textContent = `Complete: ${counters.complete}`;
 
@@ -682,7 +682,6 @@ function updateHeaderStats() {
   if (completionLabel)
     completionLabel.textContent = averageCompletion + '% Complete';
 
-  var counters = projectsPageState.ui.statusCounters;
   var totalMilestones = projects.reduce(function (sum, p) {
     return sum + (p.stats?.total || 0);
   }, 0);

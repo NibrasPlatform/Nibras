@@ -69,6 +69,7 @@
     "seed:year3": "npx tsx prisma/seed-year3.ts",
     "seed:year4": "npx tsx prisma/seed-year4.ts",
     "seed:community": "npx tsx prisma/seed-community.ts",
+    "seed:curriculum": "node scripts/monorepo/seed-stanford-v2.js && npm run seed:open-curricula && npm run seed:open-curricula-projects",
     "seed:cp-roadmap": "npx tsx prisma/seed-cp-roadmap.ts",
     "seed:screenshot": "npx tsx prisma/seed-screenshot.ts",
     "judge0:dev": "docker compose -f docker-compose.judge0.yml up -d",

@@ -17,7 +17,7 @@ test('resolveSelectedLevel maps yearLevel to study level labels', async () => {
       id: 'demo',
       email: 'demo@nibras.dev',
       username: 'demo',
-      displayName: 'Alex Chen',
+      displayName: 'Hossam Ahmed',
       systemRole: 'user',
       yearLevel: 2,
     }),
@@ -62,7 +62,7 @@ test('resolveSelectedLevel maps yearLevel to study level labels', async () => {
         id: 'demo',
         email: 'demo@nibras.dev',
         username: 'demo',
-        displayName: 'Alex Chen',
+        displayName: 'Hossam Ahmed',
         systemRole: 'user',
         yearLevel: 2,
       })

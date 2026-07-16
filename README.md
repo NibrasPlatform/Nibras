@@ -40,7 +40,7 @@ Local level test accounts (password `local123`):
 | Email | Level |
 |-------|-------|
 | `beginner@nibras.dev` | Beginner (1) |
-| `demo@nibras.dev` | Intermediate (2) |
+| `demo@nibras.dev` | Hossam Ahmed — Intermediate (2), veteran demo (1+ year of activity) |
 | `advanced@nibras.dev` | Advanced (3) |
 | `expert@nibras.dev` | Expert (4) |
 
@@ -97,7 +97,7 @@ NIBRAS_TUTOR_API_ORIGIN=http://fastify-api:4848
 | `npm run smoke:local`       | HTTP smoke test against NestJS API           |
 | `npm run smoke:gateway`     | Gateway smoke (community + competitions)     |
 | `npm run db:deploy`         | Apply Prisma migrations                      |
-| `npm run seed:screenshot`   | Seed demo data for UI screenshots            |
+| `npm run seed:screenshot`   | Seed Hossam Ahmed veteran demo data for UI/presentations |
 
 ## CLI
 

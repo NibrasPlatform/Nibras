@@ -86,19 +86,51 @@ type StudentSnapshotInput = {
   reviewsBySubmission: Record<string, ReviewRecord | null>;
 };
 
+function deriveProjectStatsFromMilestoneStatuses(
+  milestones: Array<{ status: string; dueAt?: string | null }>,
+  fallbackMinutesRemaining = 0,
+): {
+  approved: number;
+  underReview: number;
+  completion: number;
+  total: number;
+  minutesRemaining: number;
+} {
+  const total = milestones.length;
+  const approved = milestones.filter(
+    (entry) => entry.status === 'approved' || entry.status === 'graded',
+  ).length;
+  const underReview = milestones.filter((entry) =>
+    ['submitted', 'needs_review', 'changes_requested'].includes(entry.status),
+  ).length;
+  const open = milestones.filter((entry) => entry.status === 'open').length;
+  const futureDates = milestones
+    .map((entry) => entry.dueAt)
+    .filter((entry): entry is string => Boolean(entry))
+    .map((entry) => new Date(entry))
+    .filter((entry) => entry.getTime() > Date.now());
+  const lastDue =
+    futureDates.length > 0
+      ? new Date(Math.max(...futureDates.map((entry) => entry.getTime())))
+      : null;
+  return {
+    approved,
+    underReview,
+    completion: total ? Math.round((approved / total) * 100) : 0,
+    total: approved + underReview + open,
+    minutesRemaining: lastDue
+      ? Math.ceil((lastDue.getTime() - Date.now()) / 60_000)
+      : fallbackMinutesRemaining,
+  };
+}
+
 function buildStudentCourseSnapshot({
   snapshot,
   submissions,
   reviewsBySubmission,
 }: StudentSnapshotInput): StudentCourseSnapshotRecord {
   const projects = snapshot.projects.map((project) => {
-    const stats = snapshot.statsByProject[project.id] || {
-      approved: 0,
-      underReview: 0,
-      completion: 0,
-      total: 0,
-      minutesRemaining: 0,
-    };
+    const precomputed = snapshot.statsByProject[project.id];
     const milestones = (snapshot.milestonesByProject[project.id] || []).map(
       (milestone) => ({
         ...milestone,
@@ -109,6 +141,13 @@ function buildStudentCourseSnapshot({
         ),
       }),
     );
+    const stats =
+      precomputed && precomputed.total > 0
+        ? precomputed
+        : deriveProjectStatsFromMilestoneStatuses(
+            milestones,
+            precomputed?.minutesRemaining ?? 0,
+          );
     const nextMilestone =
       milestones
         .filter(
